@@ -51,27 +51,23 @@ private fun GifGalleryTheme(content: @Composable () -> Unit) {
 }
 
 private enum class GifCategory(val title: String) {
-    ALL("הכול"), NEON("ניאון"), FUN("כיף"), SPACE("חלל"), NATURE("טבע")
+    ALL("הכול"), REACTIONS("תגובות"), ANIMALS("חיות"), NATURE("טבע"), SPACE("חלל"), ART("אמנות"), SCIENCE("מדע"), FUN("כיף")
 }
 
-private data class GifItem(
-    val id: Int,
-    val name: String,
-    val subtitle: String,
-    val category: GifCategory,
-    val resName: String
-)
+private data class GifItem(val id: Int, val name: String, val subtitle: String, val category: GifCategory, val resName: String)
 
-private val gifs = listOf(
-    GifItem(1, "Neon Rings", "טבעות ניאון מסתובבות", GifCategory.NEON, "neon"),
-    GifItem(2, "Bouncing Ball", "כדור קופץ בלופ", GifCategory.FUN, "ball"),
-    GifItem(3, "Star Field", "כוכבים מנצנצים", GifCategory.SPACE, "stars"),
-    GifItem(4, "Pixel Fire", "אש פיקסלים זוהרת", GifCategory.FUN, "fire"),
-    GifItem(5, "Ocean Waves", "גלים בתנועה", GifCategory.NATURE, "waves"),
-    GifItem(6, "Rotating Sun", "שמש מסתובבת", GifCategory.NATURE, "sun"),
-    GifItem(7, "Glitch Burst", "אפקט גליץ׳ צבעוני", GifCategory.NEON, "glitch"),
-    GifItem(8, "Orbit", "כדור במסלול", GifCategory.SPACE, "orbit")
-)
+private val gifs = List(100) { i ->
+    val category = when (i % 7) {
+        0 -> GifCategory.REACTIONS
+        1 -> GifCategory.ANIMALS
+        2 -> GifCategory.NATURE
+        3 -> GifCategory.SPACE
+        4 -> GifCategory.ART
+        5 -> GifCategory.SCIENCE
+        else -> GifCategory.FUN
+    }
+    GifItem(i + 1, "GIF ${i + 1}", category.title + " • אנימציה מונפשת", category, "gif%03d".format(i + 1))
+}
 
 @Composable
 private fun GifGalleryApp() {
@@ -109,10 +105,9 @@ private fun GifGalleryApp() {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Spacer(Modifier.height(18.dp))
                 Text("GIF GALLERY", color = Color(0xFF7CFFCB), style = MaterialTheme.typography.labelLarge)
-                Text("GIFים שזזים באמת", color = Color.White, style = MaterialTheme.typography.headlineMedium)
-                Text("גלריה מגניבה • עובדת גם בלי אינטרנט", color = Color.White.copy(alpha = .55f))
+                Text("100 GIFים מונפשים", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                Text("הרבה יותר תוכן • חיפוש • קטגוריות • מועדפים", color = Color.White.copy(alpha = .55f))
                 Spacer(Modifier.height(14.dp))
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextField(
                         value = query,
@@ -132,30 +127,19 @@ private fun GifGalleryApp() {
                     Spacer(Modifier.width(8.dp))
                     IconButton(
                         onClick = { favoritesOnly = !favoritesOnly },
-                        modifier = Modifier.size(54.dp).clip(RoundedCornerShape(18.dp))
-                            .background(if (favoritesOnly) Color(0xFF7CFFCB) else Color(0xFF151824))
+                        modifier = Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(if (favoritesOnly) Color(0xFF7CFFCB) else Color(0xFF151824))
                     ) {
-                        Icon(
-                            if (favoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            "מועדפים",
-                            tint = if (favoritesOnly) Color(0xFF08110D) else Color.White
-                        )
+                        Icon(if (favoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder, "מועדפים", tint = if (favoritesOnly) Color(0xFF08110D) else Color.White)
                     }
                 }
-
                 Spacer(Modifier.height(12.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(GifCategory.values().toList()) { item ->
-                        FilterChip(
-                            selected = category == item,
-                            onClick = { category = item },
-                            label = { Text(item.title) }
-                        )
+                        FilterChip(selected = category == item, onClick = { category = item }, label = { Text(item.title) })
                     }
                 }
                 Spacer(Modifier.height(12.dp))
             }
-
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
@@ -175,24 +159,12 @@ private fun GifGalleryApp() {
 
 @Composable
 private fun GifCard(item: GifItem, favorite: Boolean, onFavorite: () -> Unit, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        color = Color(0xFF121522)
-    ) {
+    Surface(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(22.dp), color = Color(0xFF121522)) {
         Column {
             Box(Modifier.fillMaxWidth().height(175.dp)) {
                 GifPlayer(item.resName, Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)))
-                IconButton(
-                    onClick = onFavorite,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
-                        .size(40.dp).clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = .55f))
-                ) {
-                    Icon(
-                        if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        null,
-                        tint = if (favorite) Color(0xFFFF6D8B) else Color.White
-                    )
+                IconButton(onClick = onFavorite, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(40.dp).clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = .55f))) {
+                    Icon(if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, tint = if (favorite) Color(0xFFFF6D8B) else Color.White)
                 }
             }
             Column(Modifier.padding(13.dp)) {
@@ -209,47 +181,27 @@ private fun GifDetails(item: GifItem, favorite: Boolean, onFavorite: () -> Unit,
         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("← חזרה", color = Color.White, modifier = Modifier.clickable(onClick = onBack).padding(8.dp))
             Spacer(Modifier.weight(1f))
-            IconButton(onClick = onFavorite) {
-                Icon(
-                    if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    null,
-                    tint = if (favorite) Color(0xFFFF6D8B) else Color.White
-                )
-            }
+            IconButton(onClick = onFavorite) { Icon(if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, tint = if (favorite) Color(0xFFFF6D8B) else Color.White) }
         }
-        Box(
-            Modifier.fillMaxWidth().height(390.dp).padding(horizontal = 16.dp)
-                .clip(RoundedCornerShape(28.dp)).background(Color(0xFF111522))
-        ) {
+        Box(Modifier.fillMaxWidth().height(390.dp).padding(horizontal = 16.dp).clip(RoundedCornerShape(28.dp)).background(Color(0xFF111522))) {
             GifPlayer(item.resName, Modifier.fillMaxSize())
         }
         Column(Modifier.padding(22.dp)) {
             Text(item.name, color = Color.White, style = MaterialTheme.typography.headlineMedium)
             Spacer(Modifier.height(6.dp))
             Text(item.subtitle, color = Color(0xFF7CFFCB))
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "GIF מונפש שנמצא בתוך האפליקציה. אין צורך באינטרנט כדי להפעיל אותו.",
-                color = Color.White.copy(alpha = .65f)
-            )
         }
     }
 }
 
 @Composable
 private fun GifPlayer(name: String, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { context ->
-            GifView(context).apply {
-                gifResId = context.resources.getIdentifier(name, "drawable", context.packageName)
-            }
-        },
-        update = { view ->
-            view.gifResId = view.context.resources.getIdentifier(name, "drawable", view.context.packageName)
-            view.loadMovie()
-        }
-    )
+    AndroidView(modifier = modifier, factory = { context ->
+        GifView(context).apply { gifResId = context.resources.getIdentifier(name, "drawable", context.packageName) }
+    }, update = { view ->
+        view.gifResId = view.context.resources.getIdentifier(name, "drawable", view.context.packageName)
+        view.loadMovie()
+    })
 }
 
 private class GifView(context: Context) : View(context) {
@@ -257,7 +209,6 @@ private class GifView(context: Context) : View(context) {
     private var movie: Movie? = null
     private var started = 0L
     private var loadedId = 0
-
     fun loadMovie() {
         if (gifResId == 0 || gifResId == loadedId) return
         loadedId = gifResId
@@ -265,7 +216,6 @@ private class GifView(context: Context) : View(context) {
         started = SystemClock.uptimeMillis()
         invalidate()
     }
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val m = movie ?: run { loadMovie(); return }
@@ -274,11 +224,7 @@ private class GifView(context: Context) : View(context) {
         val scale = minOf(width.toFloat() / m.width(), height.toFloat() / m.height())
         val dx = (width - m.width() * scale) / 2f
         val dy = (height - m.height() * scale) / 2f
-        canvas.save()
-        canvas.translate(dx, dy)
-        canvas.scale(scale, scale)
-        m.draw(canvas, 0f, 0f)
-        canvas.restore()
+        canvas.save(); canvas.translate(dx, dy); canvas.scale(scale, scale); m.draw(canvas, 0f, 0f); canvas.restore()
         postInvalidateOnAnimation()
     }
 }
