@@ -48,7 +48,7 @@ jobs:
             url="$(printf '%s' "$api" | jq -r '.query.pages[]?.imageinfo[0].thumburl // empty' | head -n 1)"
             if [ -z "$url" ]; then echo "No Wikimedia result for: $search"; return 1; fi
             curl -fL --retry 4 --retry-delay 2 -A "JeepExplorer/1.0" "$url" -o /tmp/source
-            magick /tmp/source -auto-orient -resize "1200x900^" -gravity center -crop "1200x900+0+0" +repage -strip -interlace Plane -quality 82 "app/src/main/res/drawable-nodpi/$output"
+            convert /tmp/source -auto-orient -resize "1200x900^" -gravity center -crop "1200x900+0+0" +repage -strip -interlace Plane -quality 82 "app/src/main/res/drawable-nodpi/$output"
           }
 
           download_jeep jeep_tj.jpg "Jeep Wrangler TJ"
@@ -71,7 +71,7 @@ jobs:
           download_jeep jeep_gladiator_willys.jpg "Jeep Gladiator Willys"
           download_jeep jeep_gladiator_sahara.jpg "Jeep Gladiator Sahara"
 
-          magick app/src/main/res/drawable-nodpi/jeep_tj.jpg -gravity center -crop 1:1 +repage -resize 512x512 -strip -quality 88 app/src/main/res/drawable-nodpi/jeep_photo_icon.jpg
+          convert app/src/main/res/drawable-nodpi/jeep_tj.jpg -gravity center -crop 1:1 +repage -resize 512x512 -strip -quality 88 app/src/main/res/drawable-nodpi/jeep_photo_icon.jpg
 
       - name: Assemble debug APK
         run: gradle assembleDebug
