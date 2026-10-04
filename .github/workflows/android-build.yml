@@ -32,46 +32,73 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Download and bundle Jeep photos
+      - name: Generate offline GIF collection
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p app/src/main/res/drawable-nodpi
           sudo apt-get update
-          sudo apt-get install -y imagemagick jq
+          sudo apt-get install -y python3-pil
+          mkdir -p app/src/main/res/drawable-nodpi
+          python3 - <<'PY'
+          from PIL import Image, ImageDraw
+          import math, os
+          out="app/src/main/res/drawable-nodpi"
+          os.makedirs(out, exist_ok=True)
+          W=H=96
 
-          download_jeep() {
-            local output="$1"
-            local search="$2"
-            local api url
-            api="$(curl -fsSL --retry 4 --retry-delay 2 -A "JeepExplorer/1.0" -G "https://commons.wikimedia.org/w/api.php" --data-urlencode "action=query" --data-urlencode "generator=search" --data-urlencode "gsrsearch=$search" --data-urlencode "gsrnamespace=6" --data-urlencode "gsrlimit=8" --data-urlencode "prop=imageinfo" --data-urlencode "iiprop=url" --data-urlencode "iiurlwidth=1200" --data-urlencode "format=json")"
-            url="$(printf '%s' "$api" | jq -r '.query.pages[]?.imageinfo[0].thumburl // empty' | head -n 1)"
-            if [ -z "$url" ]; then echo "No Wikimedia result for: $search"; return 1; fi
-            curl -fL --retry 4 --retry-delay 2 -A "JeepExplorer/1.0" "$url" -o /tmp/source
-            convert /tmp/source -auto-orient -resize "1200x900^" -gravity center -crop "1200x900+0+0" +repage -strip -interlace Plane -quality 82 "app/src/main/res/drawable-nodpi/$output"
-          }
+          def make(name, draw):
+              frames=[]
+              for f in range(8):
+                  im=Image.new("RGB",(W,H),(8,8,12))
+                  draw(ImageDraw.Draw(im),f)
+                  frames.append(im)
+              frames[0].save(os.path.join(out,name),save_all=True,append_images=frames[1:],duration=100,loop=0,optimize=True)
 
-          download_jeep jeep_tj.jpg "Jeep Wrangler TJ"
-          download_jeep jeep_yj.jpg "Jeep Wrangler YJ"
-          download_jeep jeep_sahara.jpg "Jeep Wrangler Sahara"
-          download_jeep jeep_sahara_open.jpg "Jeep Wrangler open"
-          download_jeep jeep_cherokee_2door.jpg "Jeep Cherokee 2 door"
-          download_jeep jeep_cherokee_xj.jpg "Jeep Cherokee XJ"
-          download_jeep jeep_cherokee_kk.jpg "Jeep Cherokee KK"
-          download_jeep jeep_grand_cherokee_zj.jpg "Jeep Grand Cherokee ZJ"
-          download_jeep jeep_grand_cherokee_wj.jpg "Jeep Grand Cherokee WJ"
-          download_jeep jeep_grand_cherokee_wk.jpg "Jeep Grand Cherokee WK"
-          download_jeep jeep_grand_cherokee_4xe.jpg "Jeep Grand Cherokee 4xe"
-          download_jeep jeep_compass.jpg "Jeep Compass"
-          download_jeep jeep_compass_white.jpg "Jeep Compass white"
-          download_jeep jeep_liberty.jpg "Jeep Liberty"
-          download_jeep jeep_patriot.jpg "Jeep Patriot"
-          download_jeep jeep_renegade.jpg "Jeep Renegade"
-          download_jeep jeep_cj.jpg "Jeep CJ"
-          download_jeep jeep_gladiator_willys.jpg "Jeep Gladiator Willys"
-          download_jeep jeep_gladiator_sahara.jpg "Jeep Gladiator Sahara"
+          def neon(d,f):
+              for r in range(10,45,8):
+                  d.ellipse((48-r,48-r,48+r,48+r),outline=((r*5+f*20)%255,80,220),width=2)
 
-          convert app/src/main/res/drawable-nodpi/jeep_tj.jpg -gravity center -crop 1:1 +repage -resize 512x512 -strip -quality 88 app/src/main/res/drawable-nodpi/jeep_photo_icon.jpg
+          def ball(d,f):
+              x=10+76*f/7; y=65-35*math.sin(math.pi*f/7)
+              d.ellipse((x-7,y-7,x+7,y+7),fill=(80,220,255))
+
+          def stars(d,f):
+              for i in range(12):
+                  x=(i*23+f*6)%96; y=(i*37+f*3)%96
+                  d.ellipse((x,y,x+2,y+2),fill=(255,255,255))
+
+          def fire(d,f):
+              for i in range(20):
+                  x=48+(i%5-2)*8; y=82-(i*7+f*9)%65
+                  d.rectangle((x,y,x+4,y+4),fill=(255,(i*20+80)%220,20))
+
+          def waves(d,f):
+              for y0 in (25,48,71):
+                  pts=[(x,y0+6*math.sin(x*.12+f*.7)) for x in range(96)]
+                  d.line(pts,fill=(50,170,255),width=2)
+
+          def sun(d,f):
+              for i in range(8):
+                  a=i*math.pi/4+f*.2
+                  d.line((48+20*math.cos(a),48+20*math.sin(a),48+38*math.cos(a),48+38*math.sin(a)),fill=(255,180,40),width=3)
+              d.ellipse((30,30,66,66),fill=(255,130,30))
+
+          def glitch(d,f):
+              for i in range(10):
+                  x=(i*17+f*13)%96; y=(i*9+f*7)%96
+                  d.rectangle((x,y,min(95,x+12),y+3),fill=((i*50+f*30)%255,200,80))
+
+          def orbit(d,f):
+              a=f*math.pi/4
+              d.ellipse((20,20,76,76),outline=(120,80,255),width=2)
+              x=42+24*math.cos(a); y=42+24*math.sin(a)
+              d.ellipse((x-4,y-4,x+4,y+4),fill=(80,240,180))
+
+          for name,fn in [
+              ("neon.gif",neon),("ball.gif",ball),("stars.gif",stars),("fire.gif",fire),
+              ("waves.gif",waves),("sun.gif",sun),("glitch.gif",glitch),("orbit.gif",orbit)
+          ]: make(name,fn)
+          PY
 
       - name: Assemble debug APK
         run: gradle assembleDebug
@@ -79,7 +106,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: JeepExplorer-debug
+          name: GifGallery-debug
           path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Publish GitHub release
@@ -90,7 +117,5 @@ jobs:
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest app/build/outputs/apk/debug/app-debug.apk --clobber
           else
-            gh release create latest app/build/outputs/apk/debug/app-debug.apk \
-              --title "Jeep Explorer Latest" \
-              --notes "Latest installable Jeep Explorer Android APK."
+            gh release create latest app/build/outputs/apk/debug/app-debug.apk               --title "GIF Gallery Latest"               --notes "Latest offline animated GIF gallery Android APK."
           fi
