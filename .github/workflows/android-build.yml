@@ -47,11 +47,11 @@ jobs:
             circle=$(printf 'gif%03d.gif' "$((n+100))")
 
             curl -fL --retry 3 --retry-delay 1 --connect-timeout 10 --max-time 30 \
-              "https://cdn.jsdelivr.net/gh/open-assets-hub/animated-country-flags@main/packs/waving/${code}/${code}-128.gif" \
+              "https://raw.githubusercontent.com/open-assets-hub/animated-country-flags/main/packs/waving/${code}/${code}-128.gif" \
               -o "app/src/main/res/drawable-nodpi/${wave}"
 
             curl -fL --retry 3 --retry-delay 1 --connect-timeout 10 --max-time 30 \
-              "https://cdn.jsdelivr.net/gh/open-assets-hub/animated-country-flags@main/packs/circle-wave/${code}/${code}-128.gif" \
+              "https://raw.githubusercontent.com/open-assets-hub/animated-country-flags/main/packs/circle-wave/${code}/${code}-128.gif" \
               -o "app/src/main/res/drawable-nodpi/${circle}"
 
             test -s "app/src/main/res/drawable-nodpi/${wave}"
@@ -60,7 +60,7 @@ jobs:
           export -f download_one
 
           printf '%s\n' "${codes[@]}" | nl -v1 -w1 | awk '{print $1, $2}' |
-            xargs -n2 -P16 bash -c 'download_one "$1" "$2"' _
+            xargs -n2 -P8 bash -c 'download_one "$1" "$2"' _
 
           count=$(find app/src/main/res/drawable-nodpi -name '*.gif' | wc -l)
           echo "Downloaded $count animated GIFs"
