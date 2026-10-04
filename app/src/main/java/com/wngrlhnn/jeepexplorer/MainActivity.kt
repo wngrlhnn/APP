@@ -22,7 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.clip
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -203,7 +203,7 @@ private fun JeepExplorerApp() {
 }
 
 @Composable
-private fun StatPill(value: String, label: String) {
+private fun RowScope.StatPill(value: String, label: String) {
     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
         Text(label, color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
