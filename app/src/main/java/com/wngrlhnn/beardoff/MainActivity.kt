@@ -100,6 +100,11 @@ class MainActivity : ComponentActivity() {
                             BeardCameraView(ctx).also { view ->
                                 cameraView = view
                                 view.onFaceDetected = { faceDetected = it }
+                                if (checkSelfPermission(Manifest.permission.CAMERA) ==
+                                    android.content.pm.PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    view.post { view.start(this@MainActivity) }
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxSize()
