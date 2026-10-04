@@ -31,37 +31,37 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Download 100 real animated GIFs
+      - name: Download 200 real animated GIFs
         shell: bash
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y imagemagick jq
           mkdir -p app/src/main/res/drawable-nodpi
-          terms=("animated smiley" "animated animals" "animated nature" "animated space" "animated art" "animated science" "animated flags" "animated letters" "animated numbers" "animated flowers" "animated earth" "animated ocean" "animated weather" "animated cartoon" "animated icons" "animated chess" "animated maps" "animated mars" "animated sky" "animated throbber")
-          n=0
-          for term in "${terms[@]}"; do
-            [ "$n" -ge 100 ] && break
-            json="$(curl -fsSL --retry 4 --retry-delay 2 -A 'GIFGallery/1.0' -G 'https://commons.wikimedia.org/w/api.php' --data-urlencode 'action=query' --data-urlencode 'generator=search' --data-urlencode "gsrsearch=$term filetype:gif" --data-urlencode 'gsrnamespace=6' --data-urlencode 'gsrlimit=20' --data-urlencode 'prop=imageinfo' --data-urlencode 'iiprop=url' --data-urlencode 'iiurlwidth=360' --data-urlencode 'format=json')"
-            while read -r url; do
-              [ "$n" -ge 100 ] && break
-              [ -z "$url" ] && continue
-              n=$((n+1))
-              name=$(printf 'gif%03d.gif' "$n")
-              if curl -fL --max-time 45 --retry 2 -A 'GIFGallery/1.0' "$url" -o "/tmp/$name"; then
-                if convert "/tmp/$name" -coalesce -resize '360x360>' -layers Optimize -loop 0 "app/src/main/res/drawable-nodpi/$name" 2>/dev/null; then
-                  echo "Added $name from $term"
-                else
-                  rm -f "app/src/main/res/drawable-nodpi/$name"
-                  n=$((n-1))
-                fi
-              else
-                n=$((n-1))
-              fi
-            done < <(printf '%s' "$json" | jq -r '.query.pages[]?.imageinfo[0].thumburl // empty' | sort -u)
+
+          codes=(ad ae af ag ai al am ao ar at au az ba bb bd be bf bg bh bi bj bn bo br bs bt bw by bz ca cd cf cg ch ci cl cm cn co cr cu cv cy cz de dj dk dm do dz ec ee eg er es et fi fj fm fo fr ga gb gd ge gh gl gm gn gq gr gt gw gy hk hn hr ht hu id ie il in iq ir is it jm jo jp ke kg kh ki km kn kp kr kw kz la lb lc li lk lr ls lt lu lv ly ma mc md me mg mh mk ml mm mn mo mr mt mu mv mw mx my mz na ne ng ni nl no np nr nz om pa pe pg ph pk pl ps pt pw py qa ro rs ru rw sa sb sc sd se sg si sk sl sm sn so sr ss st sv sy sz td tg th tj tl tm tn to tr tt tv tw tz ua ug us uy uz va vc ve vn vu ws ye za zm zw)
+
+          i=1
+          for code in "${codes[@]}"; do
+            [ "$i" -gt 100 ] && break
+
+            wave=$(printf 'gif%03d.gif' "$i")
+            circle=$(printf 'gif%03d.gif' "$((i+100))")
+
+            curl -fsSL --retry 4 --retry-delay 1 \
+              "https://cdn.jsdelivr.net/gh/open-assets-hub/animated-country-flags@main/packs/waving/${code}/${code}-128.gif" \
+              -o "app/src/main/res/drawable-nodpi/${wave}"
+
+            curl -fsSL --retry 4 --retry-delay 1 \
+              "https://cdn.jsdelivr.net/gh/open-assets-hub/animated-country-flags@main/packs/circle-wave/${code}/${code}-128.gif" \
+              -o "app/src/main/res/drawable-nodpi/${circle}"
+
+            test -s "app/src/main/res/drawable-nodpi/${wave}"
+            test -s "app/src/main/res/drawable-nodpi/${circle}"
+            i=$((i+1))
           done
-          echo "Downloaded $n GIFs"
-          if [ "$n" -lt 100 ]; then echo 'Not enough GIFs downloaded' >&2; exit 1; fi
+
+          count=$(find app/src/main/res/drawable-nodpi -name '*.gif' | wc -l)
+          echo "Downloaded $count animated GIFs"
+          test "$count" -eq 200
 
       - name: Assemble debug APK
         run: gradle assembleDebug
@@ -69,7 +69,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: GifGallery-100-debug
+          name: GifGallery-200-debug
           path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Publish GitHub release
@@ -80,5 +80,5 @@ jobs:
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest app/build/outputs/apk/debug/app-debug.apk --clobber
           else
-            gh release create latest app/build/outputs/apk/debug/app-debug.apk --title "GIF Gallery 100+" --notes "100 real animated GIFs bundled offline."
+            gh release create latest app/build/outputs/apk/debug/app-debug.apk --title "GIF Gallery 200+" --notes "200 real animated GIFs bundled offline. GIF assets are from the MIT-licensed Animated Country Flags project."
           fi
