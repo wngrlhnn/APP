@@ -99,10 +99,31 @@ private fun JeepExplorerApp() {
         ) {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Spacer(Modifier.height(18.dp))
-                Text("JEEP EXPLORER", color = Color(0xFFD9F36A), fontWeight = FontWeight.Black)
-                Spacer(Modifier.height(3.dp))
-                Text("גלריית ג׳יפים אמיתית", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text("30 דגמים • תמונות מקומיות • 100% אופליין", color = Color.White.copy(alpha = 0.55f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("JEEP EXPLORER", color = Color(0xFFD9F36A), fontWeight = FontWeight.Black)
+                        Spacer(Modifier.height(4.dp))
+                        Text("הג׳יפ הבא שלך מחכה כאן", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("30 דגמים • 100% אופליין", color = Color.White.copy(alpha = 0.55f))
+                    }
+                    Surface(shape = CircleShape, color = Color(0xFF151A1D), modifier = Modifier.size(52.dp)) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("4×4", color = Color(0xFFD9F36A), fontWeight = FontWeight.Black)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFF151A1D)
+                ) {
+                    Row(Modifier.padding(15.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        StatPill("30", "דגמים")
+                        StatPill(favoriteIds.size.toString(), "מועדפים")
+                        StatPill(filtered.size.toString(), "בתצוגה")
+                    }
+                }
                 Spacer(Modifier.height(15.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -182,6 +203,14 @@ private fun JeepExplorerApp() {
 }
 
 @Composable
+private fun StatPill(value: String, label: String) {
+    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+        Text(label, color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+@Composable
 private fun JeepCard(
     jeep: Jeep,
     favorite: Boolean,
@@ -191,7 +220,8 @@ private fun JeepCard(
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
-        color = Color(0xFF12171A)
+        color = Color(0xFF11171A),
+        tonalElevation = 4.dp
     ) {
         Column {
             Box(
