@@ -5,7 +5,7 @@
         android:roundIcon="@drawable/ic_gif_gallery"
         android:label="GIF Gallery"
         android:supportsRtl="true"
-        android:theme="@style/Theme.JeepExplorer">
+        android:theme="@style/Theme.GifGallery">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
