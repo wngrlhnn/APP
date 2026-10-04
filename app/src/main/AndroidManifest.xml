@@ -1,9 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
         android:allowBackup="true"
-        android:icon="@drawable/jeep_photo_icon"
-        android:roundIcon="@drawable/jeep_photo_icon"
-        android:label="Jeep Explorer"
+        android:icon="@drawable/ic_gif_gallery"
+        android:roundIcon="@drawable/ic_gif_gallery"
+        android:label="GIF Gallery"
         android:supportsRtl="true"
         android:theme="@style/Theme.JeepExplorer">
         <activity android:name=".MainActivity" android:exported="true">
