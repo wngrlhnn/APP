@@ -1,5 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:icon="@drawable/jeep_photo_icon"
-        android:roundIcon="@drawable/jeep_photo_icon" />
+        android:icon="@drawable/ic_gif_gallery"
+        android:roundIcon="@drawable/ic_gif_gallery" />
 </manifest>
