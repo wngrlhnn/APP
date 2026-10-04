@@ -1,18 +1,21 @@
 package com.wngrlhnn.jeepexplorer
 
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Movie
 import android.os.Bundle
+import android.os.SystemClock
+import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
@@ -23,121 +26,105 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { JeepExplorerTheme { JeepExplorerApp() } }
+        setContent { GifGalleryTheme { GifGalleryApp() } }
     }
 }
 
 @Composable
-private fun JeepExplorerTheme(content: @Composable () -> Unit) {
+private fun GifGalleryTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = Color(0xFFD9F36A),
-            onPrimary = Color(0xFF172000),
-            background = Color(0xFF07090B),
-            surface = Color(0xFF12171A)
+            primary = Color(0xFF7CFFCB),
+            secondary = Color(0xFF9B7CFF),
+            background = Color(0xFF080910),
+            surface = Color(0xFF121522)
         ),
         content = content
     )
 }
 
-@Composable
-private fun JeepExplorerApp() {
-    var query by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf(Category.ALL) }
-    var favoritesOnly by remember { mutableStateOf(false) }
-    var favoriteIds by remember { mutableStateOf(setOf<Int>()) }
-    var selected by remember { mutableStateOf<Int?>(null) }
+private enum class GifCategory(val title: String) {
+    ALL("הכול"), NEON("ניאון"), FUN("כיף"), SPACE("חלל"), NATURE("טבע")
+}
 
-    val selectedJeep = jeeps.firstOrNull { it.id == selected }
-    if (selectedJeep != null) {
-        JeepDetails(
-            jeep = selectedJeep,
-            favorite = selectedJeep.id in favoriteIds,
-            onFavorite = {
-                favoriteIds = if (selectedJeep.id in favoriteIds) favoriteIds - selectedJeep.id else favoriteIds + selectedJeep.id
-            },
-            onBack = { selected = null }
-        )
+private data class GifItem(
+    val id: Int,
+    val name: String,
+    val subtitle: String,
+    val category: GifCategory,
+    val resName: String
+)
+
+private val gifs = listOf(
+    GifItem(1, "Neon Rings", "טבעות ניאון מסתובבות", GifCategory.NEON, "neon"),
+    GifItem(2, "Bouncing Ball", "כדור קופץ בלופ", GifCategory.FUN, "ball"),
+    GifItem(3, "Star Field", "כוכבים מנצנצים", GifCategory.SPACE, "stars"),
+    GifItem(4, "Pixel Fire", "אש פיקסלים זוהרת", GifCategory.FUN, "fire"),
+    GifItem(5, "Ocean Waves", "גלים בתנועה", GifCategory.NATURE, "waves"),
+    GifItem(6, "Rotating Sun", "שמש מסתובבת", GifCategory.NATURE, "sun"),
+    GifItem(7, "Glitch Burst", "אפקט גליץ׳ צבעוני", GifCategory.NEON, "glitch"),
+    GifItem(8, "Orbit", "כדור במסלול", GifCategory.SPACE, "orbit")
+)
+
+@Composable
+private fun GifGalleryApp() {
+    var query by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf(GifCategory.ALL) }
+    var favoritesOnly by remember { mutableStateOf(false) }
+    var favorites by remember { mutableStateOf(setOf<Int>()) }
+    var selected by remember { mutableStateOf<GifItem?>(null) }
+
+    selected?.let { item ->
+        GifDetails(item, item.id in favorites, {
+            favorites = if (item.id in favorites) favorites - item.id else favorites + item.id
+        }) { selected = null }
         return
     }
 
-    val filtered = jeeps.filter { jeep ->
-        val textMatch = query.isBlank() ||
-            jeep.name.contains(query, true) ||
-            jeep.subtitle.contains(query, true)
-        val categoryMatch = category == Category.ALL || jeep.category == category
-        val favoritesMatch = !favoritesOnly || jeep.id in favoriteIds
-        textMatch && categoryMatch && favoritesMatch
+    val filtered = gifs.filter {
+        val text = query.isBlank() || it.name.contains(query, true) || it.subtitle.contains(query, true)
+        val cat = category == GifCategory.ALL || it.category == category
+        val fav = !favoritesOnly || it.id in favorites
+        text && cat && fav
     }
 
     Scaffold(
-        containerColor = Color(0xFF07090B),
+        containerColor = Color(0xFF080910),
         bottomBar = {
-            Surface(color = Color(0xFF0E1215)) {
-                Text(
-                    "Jeep Explorer • " + filtered.size + " ג׳יפים",
-                    color = Color.White.copy(alpha = 0.58f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(13.dp)
-                )
-            }
+            Text(
+                "GIF Gallery • ${filtered.size} GIFים • 100% אופליין",
+                color = Color.White.copy(alpha = .55f),
+                modifier = Modifier.fillMaxWidth().background(Color(0xFF0E1018)).padding(14.dp)
+            )
         }
     ) { padding ->
-        Column(
-            Modifier.fillMaxSize().background(Color(0xFF07090B)).padding(padding)
-        ) {
+        Column(Modifier.fillMaxSize().background(Color(0xFF080910)).padding(padding)) {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Spacer(Modifier.height(18.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("JEEP EXPLORER", color = Color(0xFFD9F36A), fontWeight = FontWeight.Black)
-                        Spacer(Modifier.height(4.dp))
-                        Text("הג׳יפ הבא שלך מחכה כאן", color = Color.White, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                        Text("30 דגמים • 100% אופליין", color = Color.White.copy(alpha = 0.55f))
-                    }
-                    Surface(shape = CircleShape, color = Color(0xFF151A1D), modifier = Modifier.size(52.dp)) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text("4×4", color = Color(0xFFD9F36A), fontWeight = FontWeight.Black)
-                        }
-                    }
-                }
+                Text("GIF GALLERY", color = Color(0xFF7CFFCB), style = MaterialTheme.typography.labelLarge)
+                Text("GIFים שזזים באמת", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                Text("גלריה מגניבה • עובדת גם בלי אינטרנט", color = Color.White.copy(alpha = .55f))
                 Spacer(Modifier.height(14.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(24.dp),
-                    color = Color(0xFF151A1D)
-                ) {
-                    Row(Modifier.padding(15.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        StatPill("30", "דגמים")
-                        StatPill(favoriteIds.size.toString(), "מועדפים")
-                        StatPill(filtered.size.toString(), "בתצוגה")
-                    }
-                }
-                Spacer(Modifier.height(15.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextField(
                         value = query,
                         onValueChange = { query = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("חפש Wrangler, Gladiator...") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                        placeholder = { Text("חפש GIF...") },
+                        leadingIcon = { Icon(Icons.Default.Search, null) },
                         singleLine = true,
                         shape = RoundedCornerShape(18.dp),
                         colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFF151A1D),
-                            unfocusedContainerColor = Color(0xFF151A1D),
+                            focusedContainerColor = Color(0xFF151824),
+                            unfocusedContainerColor = Color(0xFF151824),
                             focusedIndicatorColor = Color.Transparent,
                             unfocusedIndicatorColor = Color.Transparent
                         )
@@ -145,21 +132,20 @@ private fun JeepExplorerApp() {
                     Spacer(Modifier.width(8.dp))
                     IconButton(
                         onClick = { favoritesOnly = !favoritesOnly },
-                        modifier = Modifier.size(54.dp).clip(RoundedCornerShape(18.dp)).background(
-                            if (favoritesOnly) Color(0xFFD9F36A) else Color(0xFF151A1D)
-                        )
+                        modifier = Modifier.size(54.dp).clip(RoundedCornerShape(18.dp))
+                            .background(if (favoritesOnly) Color(0xFF7CFFCB) else Color(0xFF151824))
                     ) {
                         Icon(
                             if (favoritesOnly) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "מועדפים",
-                            tint = if (favoritesOnly) Color(0xFF172000) else Color.White
+                            "מועדפים",
+                            tint = if (favoritesOnly) Color(0xFF08110D) else Color.White
                         )
                     }
                 }
 
                 Spacer(Modifier.height(12.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(Category.values().toList()) { item ->
+                    items(GifCategory.values().toList()) { item ->
                         FilterChip(
                             selected = category == item,
                             onClick = { category = item },
@@ -170,32 +156,17 @@ private fun JeepExplorerApp() {
                 Spacer(Modifier.height(12.dp))
             }
 
-            if (filtered.isEmpty()) {
-                Text(
-                    "לא מצאתי ג׳יפ כזה",
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.titleLarge,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth().padding(top = 40.dp)
-                )
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(filtered, key = { it.id }) { jeep ->
-                        JeepCard(
-                            jeep = jeep,
-                            favorite = jeep.id in favoriteIds,
-                            onFavorite = {
-                                favoriteIds = if (jeep.id in favoriteIds) favoriteIds - jeep.id else favoriteIds + jeep.id
-                            },
-                            onClick = { selected = jeep.id }
-                        )
-                    }
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(filtered, key = { it.id }) { item ->
+                    GifCard(item, item.id in favorites, {
+                        favorites = if (item.id in favorites) favorites - item.id else favorites + item.id
+                    }) { selected = item }
                 }
             }
         }
@@ -203,125 +174,111 @@ private fun JeepExplorerApp() {
 }
 
 @Composable
-private fun RowScope.StatPill(value: String, label: String) {
-    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = Color.White, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
-        Text(label, color = Color.White.copy(alpha = 0.5f), style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-@Composable
-private fun JeepCard(
-    jeep: Jeep,
-    favorite: Boolean,
-    onFavorite: () -> Unit,
-    onClick: () -> Unit
-) {
+private fun GifCard(item: GifItem, favorite: Boolean, onFavorite: () -> Unit, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        color = Color(0xFF11171A),
-        tonalElevation = 4.dp
+        shape = RoundedCornerShape(22.dp),
+        color = Color(0xFF121522)
     ) {
         Column {
-            Box(
-                Modifier.fillMaxWidth().height(165.dp).clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-            ) {
-                Image(
-                    painter = painterResource(id = jeep.photoRes),
-                    contentDescription = jeep.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                Box(
-                    Modifier.fillMaxSize().background(
-                        Brush.verticalGradient(listOf(Color.Transparent, Color(0xDD07090B)))
-                    )
-                )
+            Box(Modifier.fillMaxWidth().height(175.dp)) {
+                GifPlayer(item.resName, Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)))
                 IconButton(
                     onClick = onFavorite,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(9.dp)
-                        .size(39.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                        .size(40.dp).clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = .55f))
                 ) {
                     Icon(
                         if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "מועדף",
-                        tint = if (favorite) Color(0xFFFF6D7A) else Color.White
-                    )
-                }
-                Surface(
-                    color = Color(0xDD101417),
-                    shape = RoundedCornerShape(11.dp),
-                    modifier = Modifier.align(Alignment.BottomStart).padding(10.dp)
-                ) {
-                    Text(
-                        jeep.category.title,
-                        color = Color(jeep.accent),
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                        null,
+                        tint = if (favorite) Color(0xFFFF6D8B) else Color.White
                     )
                 }
             }
             Column(Modifier.padding(13.dp)) {
-                Text(jeep.name, color = Color.White, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(4.dp))
-                Text(jeep.subtitle, color = Color.White.copy(alpha = 0.55f), maxLines = 2)
+                Text(item.name, color = Color.White, style = MaterialTheme.typography.titleMedium)
+                Text(item.subtitle, color = Color.White.copy(alpha = .55f), maxLines = 2)
             }
         }
     }
 }
 
 @Composable
-private fun JeepDetails(jeep: Jeep, favorite: Boolean, onFavorite: () -> Unit, onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().background(Color(0xFF07090B))) {
-        Box(Modifier.fillMaxWidth().height(410.dp)) {
-            Image(
-                painter = painterResource(id = jeep.photoRes),
-                contentDescription = jeep.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-            Box(
-                Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(
-                        listOf(Color.Black.copy(alpha = 0.08f), Color(0xF707090B))
-                    )
-                )
-            )
-            Surface(
-                color = Color.Black.copy(alpha = 0.46f),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.padding(16.dp).clickable(onClick = onBack)
-            ) {
-                Text("← חזרה", color = Color.White, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
-            }
-            IconButton(
-                onClick = onFavorite,
-                modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
-                    .clip(CircleShape).background(Color.Black.copy(alpha = 0.45f))
-            ) {
+private fun GifDetails(item: GifItem, favorite: Boolean, onFavorite: () -> Unit, onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Color(0xFF080910))) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("← חזרה", color = Color.White, modifier = Modifier.clickable(onClick = onBack).padding(8.dp))
+            Spacer(Modifier.weight(1f))
+            IconButton(onClick = onFavorite) {
                 Icon(
                     if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = "מועדף",
-                    tint = if (favorite) Color(0xFFFF6D7A) else Color.White
+                    null,
+                    tint = if (favorite) Color(0xFFFF6D8B) else Color.White
                 )
             }
         }
-
-        Column(Modifier.padding(22.dp)) {
-            Text(jeep.name, color = Color.White, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(7.dp))
-            Text(jeep.subtitle, color = Color(jeep.accent), style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(18.dp))
-            Surface(color = Color(0xFF12171A), shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.padding(18.dp)) {
-                    Text("מידע על הדגם", color = Color.White.copy(alpha = 0.5f))
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "קטגוריה: " + jeep.category.title + "\n\nהצילום ארוז בתוך האפליקציה ולכן הגלריה זמינה גם בלי אינטרנט.",
-                        color = Color.White
-                    )
-                }
-            }
+        Box(
+            Modifier.fillMaxWidth().height(390.dp).padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(28.dp)).background(Color(0xFF111522))
+        ) {
+            GifPlayer(item.resName, Modifier.fillMaxSize())
         }
+        Column(Modifier.padding(22.dp)) {
+            Text(item.name, color = Color.White, style = MaterialTheme.typography.headlineMedium)
+            Spacer(Modifier.height(6.dp))
+            Text(item.subtitle, color = Color(0xFF7CFFCB))
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "GIF מונפש שנמצא בתוך האפליקציה. אין צורך באינטרנט כדי להפעיל אותו.",
+                color = Color.White.copy(alpha = .65f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun GifPlayer(name: String, modifier: Modifier = Modifier) {
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            GifView(context).apply {
+                gifResId = context.resources.getIdentifier(name, "drawable", context.packageName)
+            }
+        },
+        update = { view ->
+            view.gifResId = view.context.resources.getIdentifier(name, "drawable", view.context.packageName)
+            view.loadMovie()
+        }
+    )
+}
+
+private class GifView(context: Context) : View(context) {
+    var gifResId: Int = 0
+    private var movie: Movie? = null
+    private var started = 0L
+    private var loadedId = 0
+
+    fun loadMovie() {
+        if (gifResId == 0 || gifResId == loadedId) return
+        loadedId = gifResId
+        movie = Movie.decodeStream(resources.openRawResource(gifResId))
+        started = SystemClock.uptimeMillis()
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val m = movie ?: run { loadMovie(); return }
+        val duration = if (m.duration() > 0) m.duration() else 1000
+        m.setTime(((SystemClock.uptimeMillis() - started) % duration).toInt())
+        val scale = minOf(width.toFloat() / m.width(), height.toFloat() / m.height())
+        val dx = (width - m.width() * scale) / 2f
+        val dy = (height - m.height() * scale) / 2f
+        canvas.save()
+        canvas.translate(dx, dy)
+        canvas.scale(scale, scale)
+        m.draw(canvas, 0f, 0f)
+        canvas.restore()
+        postInvalidateOnAnimation()
     }
 }
