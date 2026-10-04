@@ -32,40 +32,44 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Download Jeep photos from Wikimedia Commons
+      - name: Download and bundle Jeep photos
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p app/src/main/res/drawable-nodpi
           sudo apt-get update
-          sudo apt-get install -y imagemagick
+          sudo apt-get install -y imagemagick jq
 
-          download_and_prepare() {
+          download_jeep() {
             local output="$1"
-            local url="$2"
-            curl -fL --retry 3 --retry-delay 2 -A "Mozilla/5.0" "$url" -o "/tmp/source.jpg"
-            magick "/tmp/source.jpg" -auto-orient -resize "1200x900^" -gravity center -crop "1200x900+0+0" +repage -strip -interlace Plane -quality 82 "app/src/main/res/drawable-nodpi/$output"
+            local search="$2"
+            local api url
+            api="$(curl -fsSL --retry 4 --retry-delay 2 -A "JeepExplorer/1.0" -G "https://commons.wikimedia.org/w/api.php" --data-urlencode "action=query" --data-urlencode "generator=search" --data-urlencode "gsrsearch=$search" --data-urlencode "gsrnamespace=6" --data-urlencode "gsrlimit=8" --data-urlencode "prop=imageinfo" --data-urlencode "iiprop=url" --data-urlencode "iiurlwidth=1200" --data-urlencode "format=json")"
+            url="$(printf '%s' "$api" | jq -r '.query.pages[]?.imageinfo[0].thumburl // empty' | head -n 1)"
+            if [ -z "$url" ]; then echo "No Wikimedia result for: $search"; return 1; fi
+            curl -fL --retry 4 --retry-delay 2 -A "JeepExplorer/1.0" "$url" -o /tmp/source
+            magick /tmp/source -auto-orient -resize "1200x900^" -gravity center -crop "1200x900+0+0" +repage -strip -interlace Plane -quality 82 "app/src/main/res/drawable-nodpi/$output"
           }
 
-          download_and_prepare jeep_tj.jpg "https://upload.wikimedia.org/wikipedia/commons/d/d9/Jeep_TJ_Wrangler.jpg"
-          download_and_prepare jeep_yj.jpg "https://upload.wikimedia.org/wikipedia/commons/3/31/Jeep-Wrangler-YJ.jpg"
-          download_and_prepare jeep_sahara.jpg "https://upload.wikimedia.org/wikipedia/commons/2/2f/%2707_Jeep_Wrangler_Sahara_2-Door.jpg"
-          download_and_prepare jeep_sahara_open.jpg "https://upload.wikimedia.org/wikipedia/commons/1/15/%2707_Jeep_Wrangler_Sahara_Convertible_2-Door.jpg"
-          download_and_prepare jeep_cherokee_2door.jpg "https://upload.wikimedia.org/wikipedia/commons/0/08/Jeep_Cherokee_2-door.jpg"
-          download_and_prepare jeep_cherokee_xj.jpg "https://upload.wikimedia.org/wikipedia/commons/6/60/97-01_Jeep_Cherokee.jpg"
-          download_and_prepare jeep_cherokee_kk.jpg "https://upload.wikimedia.org/wikipedia/commons/4/4c/Jeep_Cherokee_184151.jpg"
-          download_and_prepare jeep_grand_cherokee_zj.jpg "https://upload.wikimedia.org/wikipedia/commons/7/78/Jeep_Grand_Cherokee_ZJ.jpg"
-          download_and_prepare jeep_grand_cherokee_wj.jpg "https://upload.wikimedia.org/wikipedia/commons/6/65/Jeep-Grand-Cherokee-WJ.jpg"
-          download_and_prepare jeep_grand_cherokee_wk.jpg "https://upload.wikimedia.org/wikipedia/commons/7/74/Jeep-Grand-Cherokee-WK.jpg"
-          download_and_prepare jeep_grand_cherokee_4xe.jpg "https://upload.wikimedia.org/wikipedia/commons/2/26/Jeep_Grand_Cherokee_4xe_001.jpg"
-          download_and_prepare jeep_compass.jpg "https://upload.wikimedia.org/wikipedia/commons/e/e2/Jeep_Compass.jpg"
-          download_and_prepare jeep_compass_white.jpg "https://upload.wikimedia.org/wikipedia/commons/b/b3/Jeep-Compass.jpg"
-          download_and_prepare jeep_liberty.jpg "https://upload.wikimedia.org/wikipedia/commons/6/6b/Jeep_Liberty.jpg"
-          download_and_prepare jeep_patriot.jpg "https://upload.wikimedia.org/wikipedia/commons/7/7a/Jeep_Patriot.jpg"
-          download_and_prepare jeep_renegade.jpg "https://upload.wikimedia.org/wikipedia/commons/f/f6/Jeep_Renegade_174247.jpg"
-          download_and_prepare jeep_cj.jpg "https://upload.wikimedia.org/wikipedia/commons/0/0d/Jeep-CJ.jpg"
-          download_and_prepare jeep_gladiator_willys.jpg "https://upload.wikimedia.org/wikipedia/commons/0/0f/26_Jeep_Gladiator_Willys.jpg"
-          download_and_prepare jeep_gladiator_sahara.jpg "https://upload.wikimedia.org/wikipedia/commons/8/80/26_Jeep_Gladiator_Sahara.jpg"
+          download_jeep jeep_tj.jpg "Jeep Wrangler TJ"
+          download_jeep jeep_yj.jpg "Jeep Wrangler YJ"
+          download_jeep jeep_sahara.jpg "Jeep Wrangler Sahara"
+          download_jeep jeep_sahara_open.jpg "Jeep Wrangler open"
+          download_jeep jeep_cherokee_2door.jpg "Jeep Cherokee 2 door"
+          download_jeep jeep_cherokee_xj.jpg "Jeep Cherokee XJ"
+          download_jeep jeep_cherokee_kk.jpg "Jeep Cherokee KK"
+          download_jeep jeep_grand_cherokee_zj.jpg "Jeep Grand Cherokee ZJ"
+          download_jeep jeep_grand_cherokee_wj.jpg "Jeep Grand Cherokee WJ"
+          download_jeep jeep_grand_cherokee_wk.jpg "Jeep Grand Cherokee WK"
+          download_jeep jeep_grand_cherokee_4xe.jpg "Jeep Grand Cherokee 4xe"
+          download_jeep jeep_compass.jpg "Jeep Compass"
+          download_jeep jeep_compass_white.jpg "Jeep Compass white"
+          download_jeep jeep_liberty.jpg "Jeep Liberty"
+          download_jeep jeep_patriot.jpg "Jeep Patriot"
+          download_jeep jeep_renegade.jpg "Jeep Renegade"
+          download_jeep jeep_cj.jpg "Jeep CJ"
+          download_jeep jeep_gladiator_willys.jpg "Jeep Gladiator Willys"
+          download_jeep jeep_gladiator_sahara.jpg "Jeep Gladiator Sahara"
 
           magick app/src/main/res/drawable-nodpi/jeep_tj.jpg -gravity center -crop 1:1 +repage -resize 512x512 -strip -quality 88 app/src/main/res/drawable-nodpi/jeep_photo_icon.jpg
 
