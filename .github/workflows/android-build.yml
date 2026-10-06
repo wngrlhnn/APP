@@ -45,16 +45,16 @@ jobs:
           git checkout --quiet
           mapfile -t wave_codes < <(find packs/waving -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
           mapfile -t circle_codes < <(find packs/circle-wave -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
-          test "\${#wave_codes[@]}" -ge 500
-          test "\${#circle_codes[@]}" -ge 500
+          test "${#wave_codes[@]}" -ge 500
+          test "${#circle_codes[@]}" -ge 500
           n=1
-          for code in "\${wave_codes[@]:0:500}"; do
-            cp "packs/waving/\${code}/\${code}-128.gif" "\${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/\$(printf 'gif%04d.gif' "\$n")"
-            n=\$((n+1))
+          for code in "${wave_codes[@]:0:500}"; do
+            cp "packs/waving/${code}/${code}-128.gif" "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/$(printf 'gif%04d.gif' "$n")"
+            n=$((n+1))
           done
-          for code in "\${circle_codes[@]:0:500}"; do
-            cp "packs/circle-wave/\${code}/\${code}-128.gif" "\${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/\$(printf 'gif%04d.gif' "\$n")"
-            n=\$((n+1))
+          for code in "${circle_codes[@]:0:500}"; do
+            cp "packs/circle-wave/${code}/${code}-128.gif" "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/$(printf 'gif%04d.gif' "$n")"
+            n=$((n+1))
           done
           cd /tmp
           git clone --depth 1 --filter=blob:none --no-checkout https://github.com/plataformafitness/exercises-library.git /tmp/exercises
@@ -63,11 +63,11 @@ jobs:
           git sparse-checkout set videos
           git checkout --quiet
           mapfile -t exercise_gifs < <(find videos -type f -iname '*.gif' | sort)
-          test "\${#exercise_gifs[@]}" -ge 1300
-          cd "\${GITHUB_WORKSPACE}"
-          for file in "\${exercise_gifs[@]:0:1300}"; do
-            cp "/tmp/exercises/\$file" "app/src/main/res/drawable-nodpi/\$(printf 'gif%04d.gif' "\$n")"
-            n=\$((n+1))
+          test "${#exercise_gifs[@]}" -ge 1300
+          cd "${GITHUB_WORKSPACE}"
+          for file in "${exercise_gifs[@]:0:1300}"; do
+            cp "/tmp/exercises/$file" "app/src/main/res/drawable-nodpi/$(printf 'gif%04d.gif' "$n")"
+            n=$((n+1))
           done
           python3 -m pip install --quiet pillow
           python3 - <<'PY'
