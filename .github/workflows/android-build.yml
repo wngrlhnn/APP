@@ -39,19 +39,25 @@ jobs:
           mkdir -p app/src/main/res/drawable-nodpi
           rm -f app/src/main/res/drawable-nodpi/*.gif
 
-          # Download a few verified public-domain/CC0 GIF examples.
+          # Download real, openly licensed GIFs from Wikimedia Commons.
+          # These are CC0/public-domain works; no country flags.
           python3 - <<'PY'
           from urllib.request import urlretrieve
           from pathlib import Path
           out = Path("app/src/main/res/drawable-nodpi")
           urls = [
-              "https://creativecommons.org/wp-content/uploads/2024/05/cc-logo-color-pop.gif",
+              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Cartoon_steamer_duck_walking_animation.gif",
+              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Elephant_Walking_animated.gif",
+              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Horse_gif.gif",
+              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Walk_cycle_of_a_tetrapod.gif",
+              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Mandelbrot_Set_Color_Cycling_Animation_512px.gif",
           ]
           for n, url in enumerate(urls, 1):
               try:
                   urlretrieve(url, out / f"gif{n:04d}.gif")
+                  print("downloaded:", url)
               except Exception as e:
-                  print("starter download skipped:", e)
+                  print("download skipped:", url, e)
           PY
 
           # Fill the gallery with original, varied animated GIFs — no flags.
@@ -111,8 +117,16 @@ jobs:
           PY
           cat > GIF_SOURCES.md <<'EOF'
           # GIF sources
-          The gallery contains 5,000 animated GIFs. Flag GIFs are intentionally excluded.
-          A small public-domain/CC0 starter set is included; the remaining GIFs are original animations generated for this app (reactions, animals-style motion, effects, waves, confetti and abstract animations).
+          The gallery contains 5,000 animated GIFs. Country-flag GIFs are intentionally excluded.
+
+          Downloaded open-license GIFs:
+          - Cartoon steamer duck walking animation — Wikimedia Commons — CC0
+          - Elephant Walking animated — Wikimedia Commons — public domain
+          - Horse gif — Wikimedia Commons — public domain
+          - Walk cycle of a tetrapod — Wikimedia Commons — CC0
+          - Mandelbrot Set Color Cycling Animation — Wikimedia Commons — CC0
+
+          The remaining GIFs are original animations generated for this app: reactions, animal-style motion, neon effects, space, confetti, bouncing objects and abstract animations.
           EOF
 
       - name: Assemble debug APK
