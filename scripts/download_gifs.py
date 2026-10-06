@@ -52,7 +52,48 @@ def search(cat,term):
         offsets.add(cont["gsroffset"]); params["gsroffset"]=cont["gsroffset"]
     return cat,found
 
+
+
+def giphy_search(term):
+    key="dc6zaTOxFJmzC"
+    params={"api_key":key,"q":term,"limit":100,"rating":"pg-13","lang":"en"}
+    found=[]
+    try:
+        r=requests.get("https://api.giphy.com/v1/gifs/search",params=params,headers=HEADERS,timeout=30)
+        r.raise_for_status()
+        for g in r.json().get("data",[]):
+            imgs=g.get("images",{})
+            info=imgs.get("fixed_width") or imgs.get("downsized") or imgs.get("original")
+            url=(info or {}).get("url")
+            if url: found.append({"url":url,"title":"GIPHY "+g.get("id",term),"category":term.split()[0]})
+    except Exception as e:
+        print("GIPHY search failed:",term,e)
+    return found
+
+GIPHY_TERMS=[
+"funny","reaction","laugh","wow","facepalm","angry","cry","happy","dance","hello",
+"surprised","excited","confused","clap","thumbs up","no","yes","love","heart","kiss",
+"cat","dog","animal","bird","monkey","fish","cute animal","funny animal","gaming","video game",
+"anime","cartoon","meme","internet meme","celebration","party","fail","win","shock","omg",
+"fire","explosion","magic","sparkle","neon","abstract","optical illusion","space","galaxy","planet",
+"moon","stars","ocean","nature","flower","technology","robot","computer","car","sports",
+"sleep","tired","scared","scream","smile","wink","wave","dance funny","epic","awesome"
+]
+
 items=[]; seen=set(); titles=set()
+with ThreadPoolExecutor(max_workers=8) as pool:
+    fs=[pool.submit(search,c,t) for c,t in queries]
+    gs=[pool.submit(giphy_search,t) for t in GIPHY_TERMS]
+    for f in as_completed(fs):
+        cat,found=f.result()
+        for item in found:
+            if item["url"] in seen or item["title"] in titles: continue
+            seen.add(item["url"]); titles.add(item["title"]); items.append(item)
+    for f in as_completed(gs):
+        for item in f.result():
+            if item["url"] in seen or item["title"] in titles: continue
+            seen.add(item["url"]); titles.add(item["title"]); items.append(item)
+
 with ThreadPoolExecutor(max_workers=6) as pool:
     fs=[pool.submit(search,c,t) for c,t in queries]
     for f in as_completed(fs):
