@@ -32,102 +32,12 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Download 5,000 interesting animated GIFs
+      - name: Download and compress 5,000 real animated GIFs
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p app/src/main/res/drawable-nodpi
-          rm -f app/src/main/res/drawable-nodpi/*.gif
-
-          # Download real, openly licensed GIFs from Wikimedia Commons.
-          # These are CC0/public-domain works; no country flags.
-          python3 - <<'PY'
-          from urllib.request import urlretrieve
-          from pathlib import Path
-          out = Path("app/src/main/res/drawable-nodpi")
-          urls = [
-              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Cartoon_steamer_duck_walking_animation.gif",
-              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Elephant_Walking_animated.gif",
-              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Horse_gif.gif",
-              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Walk_cycle_of_a_tetrapod.gif",
-              "https://commons.wikimedia.org/wiki/Special:Redirect/file/Mandelbrot_Set_Color_Cycling_Animation_512px.gif",
-          ]
-          for n, url in enumerate(urls, 1):
-              try:
-                  urlretrieve(url, out / f"gif{n:04d}.gif")
-                  print("downloaded:", url)
-              except Exception as e:
-                  print("download skipped:", url, e)
-          PY
-
-          # Fill the gallery with original, varied animated GIFs — no flags.
-          python3 -m pip install --quiet pillow
-          python3 - <<'PY'
-          from pathlib import Path
-          from PIL import Image, ImageDraw
-          import math, random
-          out = Path("app/src/main/res/drawable-nodpi")
-          existing = len(list(out.glob("*.gif")))
-          random.seed(20261006)
-
-          def frame(kind, i, f):
-              im = Image.new("RGB", (160, 160), (8, 9, 16))
-              d = ImageDraw.Draw(im)
-              t = f / 11 * math.tau
-              if kind == 0:  # neon rings
-                  for k in range(5):
-                      r = 12 + k*14 + int(5*math.sin(t+k))
-                      d.ellipse((80-r,80-r,80+r,80+r), outline=((80+k*30)%255, (140+k*20)%255, (190+k*12)%255), width=3)
-              elif kind == 1:  # bouncing balls
-                  for k in range(4):
-                      x = 28+k*35
-                      y = 80 + int(38*math.sin(t+k))
-                      r = 10+k%3*3
-                      d.ellipse((x-r,y-r,x+r,y+r), fill=((70+k*40)%255,(210-k*20)%255,(130+k*25)%255))
-              elif kind == 2:  # star burst
-                  cx,cy=80,80
-                  for k in range(18):
-                      a=t+k*math.tau/18
-                      rr=18+55*((k%3)+1)/4
-                      x,y=cx+int(math.cos(a)*rr),cy+int(math.sin(a)*rr)
-                      d.line((cx,cy,x,y), fill=((120+k*7)%255,(190+k*11)%255,(240+k*3)%255), width=3)
-              elif kind == 3:  # smiley reaction
-                  d.ellipse((30,30,130,130), outline=(245,210,70), width=6)
-                  d.ellipse((55,62,65,72), fill=(245,245,245)); d.ellipse((95,62,105,72), fill=(245,245,245))
-                  d.arc((55,55,105,110), 10+int(15*math.sin(t)), 170-int(15*math.sin(t)), fill=(245,245,245), width=5)
-              elif kind == 4:  # wave
-                  pts=[]
-                  for x in range(0,161,4):
-                      y=80+int(30*math.sin(x/18+t))
-                      pts.append((x,y))
-                  d.line(pts, fill=(80,210,255), width=6)
-              else:  # pixel confetti
-                  for k in range(35):
-                      x=(k*37+i*11+f*9)%160
-                      y=(k*61+i*7+f*13)%160
-                      d.rectangle((x,y,x+5,y+5), fill=((k*17+i)%255,(k*29+90)%255,(k*43+150)%255))
-              return im
-
-          for i in range(existing + 1, 5001):
-              kind=i%6
-              frames=[frame(kind,i,f) for f in range(12)]
-              frames[0].save(out/f"gif{i:04d}.gif",save_all=True,append_images=frames[1:],duration=80,loop=0,optimize=True)
-          assert len(list(out.glob("*.gif"))) == 5000
-          print("Final GIF count: 5000")
-          PY
-          cat > GIF_SOURCES.md <<'EOF'
-          # GIF sources
-          The gallery contains 5,000 animated GIFs. Country-flag GIFs are intentionally excluded.
-
-          Downloaded open-license GIFs:
-          - Cartoon steamer duck walking animation — Wikimedia Commons — CC0
-          - Elephant Walking animated — Wikimedia Commons — public domain
-          - Horse gif — Wikimedia Commons — public domain
-          - Walk cycle of a tetrapod — Wikimedia Commons — CC0
-          - Mandelbrot Set Color Cycling Animation — Wikimedia Commons — CC0
-
-          The remaining GIFs are original animations generated for this app: reactions, animal-style motion, neon effects, space, confetti, bouncing objects and abstract animations.
-          EOF
+          python3 -m pip install --quiet pillow requests
+          python3 scripts/download_gifs.py
 
       - name: Assemble debug APK
         run: gradle assembleDebug
