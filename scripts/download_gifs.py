@@ -52,7 +52,7 @@ def search(cat,term):
             if blocked.search(title): continue
             info=(page.get("imageinfo") or [{}])[0]
             if info.get("mime")!="image/gif": continue
-            url=info.get("thumburl") or info.get("url")
+            url=info.get("url") or info.get("thumburl")
             if url: found.append({"url":url,"title":title,"category":cat})
         cont=data.get("continue")
         if not cont or cont.get("gsroffset") in offsets: break
@@ -86,7 +86,7 @@ def category_gifs(category="Animated GIF files"):
         for page in data.get("query",{}).get("pages",[]):
             info=(page.get("imageinfo") or [{}])[0]
             if info.get("mime")=="image/gif":
-                url=info.get("thumburl") or info.get("url")
+                url=info.get("url") or info.get("thumburl")
                 if url: resolved.append({"url":url,"title":page.get("title",""),"category":"random"})
     return resolved
 
@@ -116,7 +116,7 @@ def download(job):
             with raw.open("wb") as f:
                 for chunk in r.iter_content(65536):
                     total+=len(chunk)
-                    if total>2_000_000: raise ValueError("source too large")
+                    if total>8_000_000: raise ValueError("source too large")
                     f.write(chunk)
         with Image.open(raw) as im:
             frames=[]; durations=[]
