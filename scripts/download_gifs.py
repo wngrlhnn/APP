@@ -3,7 +3,7 @@ import json, re, time, random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import requests
-from PIL import Image
+from PIL import Image, ImageSequence
 
 OUT=Path("app/src/main/res/drawable-nodpi"); ASSETS=Path("app/src/main/assets")
 OUT.mkdir(parents=True,exist_ok=True); ASSETS.mkdir(parents=True,exist_ok=True)
@@ -25,20 +25,31 @@ queries=[
 ("objects","animated machine gif"),("objects","animated vehicle gif"),("objects","animated technology gif"),
 ("nature","animated nature gif"),("nature","animated plant gif"),("nature","animated flower gif"),("nature","animated ocean gif"),
 ("love","animated love gif"),("love","heart animation gif"),("greetings","hello animation gif"),("greetings","thank you animation gif")]
-blocked=re.compile(r"flag|country.?flag|national.?flag|logo.?flag|ensign",re.I)
+blocked=re.compile(r"(^|[^a-z])(flag|ensign)([^a-z]|$)|country.?flag|national.?flag|logo.?flag",re.I)
 
-def request_json(params, retries=5):
+def request_json(params,retries=5):
     for attempt in range(retries):
         try:
             r=requests.get(API,params=params,headers=HEADERS,timeout=30)
             if r.status_code in (429,500,502,503,504):
                 time.sleep(min(10,2**attempt)); continue
-            r.raise_for_status()
-            return r.json()
+            r.raise_for_status(); return r.json()
         except requests.RequestException:
-            if attempt==retries-1: return None
+            if attempt==retries-1:return None
             time.sleep(min(10,2**attempt))
     return None
+
+def add_info(found,page,cat):
+    title=page.get("title","")
+    if blocked.search(title): return
+    infos=page.get("imageinfo") or []
+    if not infos:return
+    info=infos[0]
+    mime=(info.get("mime") or "").lower()
+    url=info.get("url") or info.get("thumburl")
+    # Wikimedia sometimes labels animated GIF derivatives as image/gif only in url metadata.
+    if url and (mime=="image/gif" or url.lower().split("?")[0].endswith(".gif")):
+        found.append({"url":url,"title":title,"category":cat})
 
 def search(cat,term):
     params={"action":"query","generator":"search","gsrsearch":term,"gsrnamespace":6,"gsrlimit":50,
@@ -47,21 +58,15 @@ def search(cat,term):
     for _ in range(PAGES_PER_QUERY):
         data=request_json(params)
         if not data: break
-        for page in data.get("query",{}).get("pages",[]):
-            title=page.get("title","")
-            if blocked.search(title): continue
-            info=(page.get("imageinfo") or [{}])[0]
-            if info.get("mime")!="image/gif": continue
-            url=info.get("url") or info.get("thumburl")
-            if url: found.append({"url":url,"title":title,"category":cat})
+        for page in data.get("query",{}).get("pages",[]): add_info(found,page,cat)
         cont=data.get("continue")
         if not cont or cont.get("gsroffset") in offsets: break
         offsets.add(cont["gsroffset"]); params["gsroffset"]=cont["gsroffset"]
     return cat,found
 
 def category_gifs(category="Animated GIF files"):
-    params={"action":"query","list":"categorymembers","cmtitle":"Category:"+category,
-            "cmnamespace":6,"cmlimit":500,"format":"json","formatversion":2}
+    params={"action":"query","list":"categorymembers","cmtitle":"Category:"+category,"cmnamespace":6,
+            "cmlimit":500,"format":"json","formatversion":2}
     found=[]; seen_titles=set()
     for _ in range(80):
         data=request_json(params)
@@ -69,8 +74,7 @@ def category_gifs(category="Animated GIF files"):
         for page in data.get("query",{}).get("categorymembers",[]):
             title=page.get("title","")
             if title in seen_titles or blocked.search(title): continue
-            seen_titles.add(title)
-            found.append({"title":title,"category":"random","pageid":page.get("pageid")})
+            seen_titles.add(title); found.append({"title":title,"category":"random","pageid":page.get("pageid")})
         cont=data.get("continue")
         if not cont: break
         params["cmcontinue"]=cont.get("cmcontinue")
@@ -79,28 +83,22 @@ def category_gifs(category="Animated GIF files"):
     for i in range(0,len(found),50):
         ids=[str(x["pageid"]) for x in found[i:i+50] if x.get("pageid")]
         if not ids: continue
-        p={"action":"query","pageids":"|".join(ids),"prop":"imageinfo",
-           "iiprop":"url|mime|size|extmetadata","iiurlwidth":WIDTH,"format":"json","formatversion":2}
+        p={"action":"query","pageids":"|".join(ids),"prop":"imageinfo","iiprop":"url|mime|size|extmetadata",
+           "iiurlwidth":WIDTH,"format":"json","formatversion":2}
         data=request_json(p)
         if not data: continue
-        for page in data.get("query",{}).get("pages",[]):
-            info=(page.get("imageinfo") or [{}])[0]
-            if info.get("mime")=="image/gif":
-                url=info.get("url") or info.get("thumburl")
-                if url: resolved.append({"url":url,"title":page.get("title",""),"category":"random"})
+        for page in data.get("query",{}).get("pages",[]): add_info(resolved,page,"random")
     return resolved
 
 items=[]; seen=set(); titles=set()
-cat_items=category_gifs()
-random.shuffle(cat_items)
-for item in cat_items:
+for item in random.sample(category_gifs(), min(30000,len(category_gifs()))):
     if item["url"] in seen or item["title"] in titles: continue
     seen.add(item["url"]); titles.add(item["title"]); items.append(item)
 
 with ThreadPoolExecutor(max_workers=8) as pool:
     fs=[pool.submit(search,c,t) for c,t in queries]
     for f in as_completed(fs):
-        cat,found=f.result()
+        _,found=f.result()
         for item in found:
             if item["url"] in seen or item["title"] in titles: continue
             seen.add(item["url"]); titles.add(item["title"]); items.append(item)
@@ -119,25 +117,28 @@ def download(job):
                     if total>8_000_000: raise ValueError("source too large")
                     f.write(chunk)
         with Image.open(raw) as im:
+            nframes=getattr(im,"n_frames",1)
             frames=[]; durations=[]
-            for i in range(min(getattr(im,"n_frames",1),16)):
-                im.seek(i); fr=im.convert("P",palette=Image.Palette.ADAPTIVE,colors=128)
-                fr.thumbnail((WIDTH,WIDTH),Image.Resampling.LANCZOS); frames.append(fr.copy())
-                durations.append(max(50,im.info.get("duration",80)))
+            for i,frame in enumerate(ImageSequence.Iterator(im)):
+                if i>=16: break
+                fr=frame.convert("P",palette=Image.Palette.ADAPTIVE,colors=128)
+                fr.thumbnail((WIDTH,WIDTH),Image.Resampling.LANCZOS)
+                frames.append(fr.copy()); durations.append(max(50,frame.info.get("duration",80)))
             if not frames: raise ValueError("no frames")
             frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,loop=im.info.get("loop",0),optimize=True,disposal=2)
         if final.stat().st_size>MAX_BYTES:
             final.unlink(missing_ok=True)
             with Image.open(raw) as im:
                 frames=[]; durations=[]
-                for i in range(min(getattr(im,"n_frames",1),12)):
-                    im.seek(i); fr=im.convert("P",palette=Image.Palette.ADAPTIVE,colors=96)
-                    fr.thumbnail((128,128),Image.Resampling.LANCZOS); frames.append(fr.copy())
-                    durations.append(max(50,im.info.get("duration",80)))
-                if frames:
-                    frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,loop=im.info.get("loop",0),optimize=True,disposal=2)
-            if not final.exists() or final.stat().st_size>MAX_BYTES:
-                final.unlink(missing_ok=True); raw.unlink(missing_ok=True); return None
+                for i,frame in enumerate(ImageSequence.Iterator(im)):
+                    if i>=12: break
+                    fr=frame.convert("P",palette=Image.Palette.ADAPTIVE,colors=96)
+                    fr.thumbnail((128,128),Image.Resampling.LANCZOS)
+                    frames.append(fr.copy()); durations.append(max(50,frame.info.get("duration",80)))
+                if not frames: raise ValueError("fallback no frames")
+                frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,loop=im.info.get("loop",0),optimize=True,disposal=2)
+        if not final.exists() or final.stat().st_size>MAX_BYTES:
+            final.unlink(missing_ok=True); return None
         raw.unlink(missing_ok=True)
         return {**item,"file":final.name,"size":final.stat().st_size}
     except Exception:
