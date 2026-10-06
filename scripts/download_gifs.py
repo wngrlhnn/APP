@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import json, re, time
+import json, re, time, random
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import requests
@@ -40,7 +40,7 @@ def search(cat,term):
             except requests.RequestException:
                 if attempt==4: return cat,found
                 time.sleep(min(10,2**attempt))
-        for page in data.get("query",{}).get("pages",[]):
+        if "data" not in locals():\n            continue\n        for page in data.get("query",{}).get("pages",[]):
             title=page.get("title","")
             if blocked.search(title): continue
             info=(page.get("imageinfo") or [{}])[0]
@@ -54,31 +54,45 @@ def search(cat,term):
 
 
 
-def giphy_search(term):
-    key="dc6zaTOxFJmzC"
-    params={"api_key":key,"q":term,"limit":100,"rating":"pg-13","lang":"en"}
-    found=[]
-    try:
-        r=requests.get("https://api.giphy.com/v1/gifs/search",params=params,headers=HEADERS,timeout=30)
-        r.raise_for_status()
-        for g in r.json().get("data",[]):
-            imgs=g.get("images",{})
-            info=imgs.get("fixed_width") or imgs.get("downsized") or imgs.get("original")
-            url=(info or {}).get("url")
-            if url: found.append({"url":url,"title":"GIPHY "+g.get("id",term),"category":term.split()[0]})
-    except Exception as e:
-        print("GIPHY search failed:",term,e)
-    return found
 
-GIPHY_TERMS=[
-"funny","reaction","laugh","wow","facepalm","angry","cry","happy","dance","hello",
-"surprised","excited","confused","clap","thumbs up","no","yes","love","heart","kiss",
-"cat","dog","animal","bird","monkey","fish","cute animal","funny animal","gaming","video game",
-"anime","cartoon","meme","internet meme","celebration","party","fail","win","shock","omg",
-"fire","explosion","magic","sparkle","neon","abstract","optical illusion","space","galaxy","planet",
-"moon","stars","ocean","nature","flower","technology","robot","computer","car","sports",
-"sleep","tired","scared","scream","smile","wink","wave","dance funny","epic","awesome"
-]
+def category_gifs(category="Animated GIF files"):
+    params={"action":"query","list":"categorymembers","cmtitle":"Category:"+category,
+            "cmnamespace":6,"cmlimit":500,"format":"json","formatversion":2}
+    found=[]; seen_titles=set()
+    for _ in range(80):
+        for attempt in range(5):
+            try:
+                r=requests.get(API,params=params,headers=HEADERS,timeout=30)
+                if r.status_code in (429,500,502,503,504): time.sleep(min(10,2**attempt)); continue
+                r.raise_for_status(); data=r.json(); break
+            except requests.RequestException:
+                if attempt==4: return found
+                time.sleep(min(10,2**attempt))
+        for page in data.get("query",{}).get("categorymembers",[]):
+            title=page.get("title","")
+            if title in seen_titles or blocked.search(title): continue
+            seen_titles.add(title)
+            found.append({"title":title,"category":"random","pageid":page.get("pageid")})
+        cont=data.get("continue")
+        if not cont: break
+        params["cmcontinue"]=cont.get("cmcontinue")
+        if not params["cmcontinue"]: break
+    resolved=[]
+    for i in range(0,len(found),50):
+        ids=[str(x["pageid"]) for x in found[i:i+50] if x.get("pageid")]
+        if not ids: continue
+        p={"action":"query","pageids":"|".join(ids),"prop":"imageinfo",
+           "iiprop":"url|mime|size|extmetadata","iiurlwidth":WIDTH,
+           "format":"json","formatversion":2}
+        try:
+            rr=requests.get(API,params=p,headers=HEADERS,timeout=30); rr.raise_for_status()
+            for page in rr.json().get("query",{}).get("pages",[]):
+                info=(page.get("imageinfo") or [{}])[0]
+                if info.get("mime")=="image/gif":
+                    url=info.get("thumburl") or info.get("url")
+                    if url: resolved.append({"url":url,"title":page.get("title",""),"category":"random"})
+        except requests.RequestException: continue
+    return resolved
 
 items=[]; seen=set(); titles=set()
 with ThreadPoolExecutor(max_workers=8) as pool:
@@ -94,13 +108,13 @@ with ThreadPoolExecutor(max_workers=8) as pool:
             if item["url"] in seen or item["title"] in titles: continue
             seen.add(item["url"]); titles.add(item["title"]); items.append(item)
 
-with ThreadPoolExecutor(max_workers=6) as pool:
-    fs=[pool.submit(search,c,t) for c,t in queries]
-    for f in as_completed(fs):
-        cat,found=f.result()
-        for item in found:
-            if item["url"] in seen or item["title"] in titles: continue
-            seen.add(item["url"]); titles.add(item["title"]); items.append(item)
+
+cat_items=category_gifs()
+random.shuffle(cat_items)
+for item in cat_items:
+    if item["url"] in seen or item["title"] in titles: continue
+    seen.add(item["url"]); titles.add(item["title"]); items.append(item)
+
 print(f"Collected {len(items)} GIF candidates")
 
 def download(job):
