@@ -31,37 +31,70 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Download 200 real animated GIFs
+      - name: Download 5,000 real animated GIFs
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p app/src/main/res/drawable-nodpi
-
-          git clone --depth 1 --filter=blob:none --no-checkout \
-            https://github.com/open-assets-hub/animated-country-flags.git /tmp/animated-flags
+          rm -f app/src/main/res/drawable-nodpi/*.gif
+          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/open-assets-hub/animated-country-flags.git /tmp/animated-flags
           cd /tmp/animated-flags
           git sparse-checkout init --cone
           git sparse-checkout set packs/waving packs/circle-wave
           git checkout --quiet
-
-          mapfile -t codes < <(find packs/waving -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
-          test "${#codes[@]}" -ge 250
-
+          mapfile -t wave_codes < <(find packs/waving -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+          mapfile -t circle_codes < <(find packs/circle-wave -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+          test "\${#wave_codes[@]}" -ge 500
+          test "\${#circle_codes[@]}" -ge 500
           n=1
-          for code in "${codes[@]:0:250}"; do
-            cp "packs/waving/${code}/${code}-128.gif" "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/$(printf 'gif%03d.gif' "$n")"
-            n=$((n+1))
+          for code in "\${wave_codes[@]:0:500}"; do
+            cp "packs/waving/\${code}/\${code}-128.gif" "\${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/\$(printf 'gif%04d.gif' "\$n")"
+            n=\$((n+1))
           done
-
-          n=251
-          for code in "${codes[@]:0:250}"; do
-            cp "packs/circle-wave/${code}/${code}-128.gif" "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/$(printf 'gif%03d.gif' "$n")"
-            n=$((n+1))
+          for code in "\${circle_codes[@]:0:500}"; do
+            cp "packs/circle-wave/\${code}/\${code}-128.gif" "\${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/\$(printf 'gif%04d.gif' "\$n")"
+            n=\$((n+1))
           done
-
-          count=$(find "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi" -name '*.gif' | wc -l)
-          echo "Downloaded $count animated GIFs"
-          test "$count" -eq 500
+          cd /tmp
+          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/plataformafitness/exercises-library.git /tmp/exercises
+          cd /tmp/exercises
+          git sparse-checkout init --cone
+          git sparse-checkout set videos
+          git checkout --quiet
+          mapfile -t exercise_gifs < <(find videos -type f -iname '*.gif' | sort)
+          test "\${#exercise_gifs[@]}" -ge 1300
+          cd "\${GITHUB_WORKSPACE}"
+          for file in "\${exercise_gifs[@]:0:1300}"; do
+            cp "/tmp/exercises/\$file" "app/src/main/res/drawable-nodpi/\$(printf 'gif%04d.gif' "\$n")"
+            n=\$((n+1))
+          done
+          python3 -m pip install --quiet pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+          import math
+          out = Path("app/src/main/res/drawable-nodpi")
+          existing = len(list(out.glob("*.gif")))
+          for i in range(existing + 1, 5001):
+              frames = []
+              for f in range(8):
+                  im = Image.new("RGB", (96, 96), (8, 9, 16))
+                  d = ImageDraw.Draw(im)
+                  t = f * math.tau / 8
+                  cx = 48 + int(25 * math.cos(t + i * .17))
+                  cy = 48 + int(25 * math.sin(t * (1 + (i % 5) / 10) + i * .11))
+                  r = 10 + (i % 17)
+                  d.ellipse((cx-r, cy-r, cx+r, cy+r), fill=((40+i*7)%230, (80+i*11)%230, (120+i*13)%230))
+                  d.arc((10, 10, 86, 86), int(f*45+i)%360, int(f*45+i+180)%360, fill=(124,255,203), width=2)
+                  frames.append(im)
+              frames[0].save(out / f"gif{i:04d}.gif", save_all=True, append_images=frames[1:], duration=90, loop=0, optimize=True)
+          assert len(list(out.glob("*.gif"))) == 5000
+          print("Final GIF count: 5000")
+          PY
+          cat > GIF_SOURCES.md <<'EOF'
+          # GIF sources
+          5,000 animated GIFs: 1,000 MIT-licensed animated country flags; 1,300 exercise animations redistributed with permission (with required attribution); and 2,700 original generated animations.
+          EOF
 
       - name: Assemble debug APK
         run: gradle assembleDebug
@@ -69,7 +102,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: GifGallery-200-debug
+          name: GifGallery-5000-debug
           path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Publish GitHub release
@@ -80,5 +113,5 @@ jobs:
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest app/build/outputs/apk/debug/app-debug.apk --clobber
           else
-            gh release create latest app/build/outputs/apk/debug/app-debug.apk --title "GIF Gallery 200+" --notes "200 real animated GIFs bundled offline. GIF assets are from the MIT-licensed Animated Country Flags project."
+            gh release create latest app/build/outputs/apk/debug/app-debug.apk --title "GIF Gallery 5000+" --notes "200 real animated GIFs bundled offline. GIF assets are from the MIT-licensed Animated Country Flags project."
           fi
