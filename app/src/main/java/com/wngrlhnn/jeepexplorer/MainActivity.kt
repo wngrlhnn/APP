@@ -48,7 +48,7 @@ private fun GifGalleryTheme(content: @Composable () -> Unit) {
 }
 
 private enum class GifCategory(val title: String) {
-    ALL("הכול"), WAVE("גלים"), CIRCLE("מעגלים")
+    ALL("הכול"), FUNNY("מצחיק"), ANIMALS("חיות"), EFFECTS("אפקטים"), REACTIONS("תגובות")
 }
 
 private data class GifItem(
@@ -61,11 +61,11 @@ private data class GifItem(
 
 private val gifs = List(5000) { index ->
     val id = index + 1
-    val category = when { id <= 500 -> GifCategory.WAVE; id <= 1000 -> GifCategory.CIRCLE; id <= 2300 -> GifCategory.WAVE; else -> GifCategory.CIRCLE }
+    val category = when { id % 4 == 0 -> GifCategory.FUNNY; id % 4 == 1 -> GifCategory.ANIMALS; id % 4 == 2 -> GifCategory.EFFECTS; else -> GifCategory.REACTIONS }
     GifItem(
         id = id,
         name = "GIF ${id.toString().padStart(4, '0')}",
-        subtitle = if (category == GifCategory.WAVE) "דגל מונפש • אפקט גלים" else "דגל מונפש • אפקט מעגל",
+        subtitle = when (category) { GifCategory.FUNNY -> "GIF מצחיק ומונפש"; GifCategory.ANIMALS -> "חיות ואנימציות"; GifCategory.EFFECTS -> "אפקטים ואנימציות"; GifCategory.REACTIONS -> "תגובות ואנימציות"; else -> "GIF מונפש" },
         category = category,
         resName = "gif%04d".format(id)
     )
@@ -118,8 +118,8 @@ private fun GifGalleryApp() {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Spacer(Modifier.height(18.dp))
                 Text("GIF GALLERY", color = Color(0xFF7CFFCB), style = MaterialTheme.typography.labelLarge)
-                Text("5,000 GIFים מונפשים", color = Color.White, style = MaterialTheme.typography.headlineMedium)
-                Text("המון GIFים מונפשים • חיפוש • קטגוריות • מועדפים", color = Color.White.copy(alpha = .55f))
+                Text("5,000+ GIFים מונפשים", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                Text("מצחיקים • חיות • אפקטים • תגובות • מועדפים", color = Color.White.copy(alpha = .55f))
                 Spacer(Modifier.height(14.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
