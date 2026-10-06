@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -22,7 +23,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import pl.droidsonroids.gif.GifImageView
@@ -117,9 +122,28 @@ private fun GifGalleryApp() {
         Column(Modifier.fillMaxSize().background(Color(0xFF080910)).padding(padding)) {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Spacer(Modifier.height(18.dp))
-                Text("GIF GALLERY", color = Color(0xFF7CFFCB), style = MaterialTheme.typography.labelLarge)
-                Text("5,000+ GIFים אמיתיים ומעניינים", color = Color.White, style = MaterialTheme.typography.headlineMedium)
-                Text("מצחיקים • חיות • אפקטים • תגובות • מועדפים", color = Color.White.copy(alpha = .55f))
+                Box(
+                    Modifier.fillMaxWidth().clip(RoundedCornerShape(26.dp))
+                        .background(Brush.linearGradient(listOf(Color(0xFF162A24), Color(0xFF19142C), Color(0xFF10131C))))
+                        .border(1.dp, Color(0xFF7CFFCB).copy(.15f), RoundedCornerShape(26.dp))
+                        .padding(20.dp)
+                ) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(Color(0xFF7CFFCB).copy(.14f)),
+                                contentAlignment = Alignment.Center) {
+                                Text("GIF", color = Color(0xFF7CFFCB), fontWeight = FontWeight.Black, fontSize = 12.sp)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text("GIF GALLERY", color = Color(0xFF7CFFCB), fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                                Text("הגלריה שעושה כיף", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Text("5,000+ GIFים מונפשים • בלי דגלים משעממים", color = Color.White.copy(.62f), fontSize = 13.sp)
+                    }
+                }
                 Spacer(Modifier.height(14.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -127,7 +151,7 @@ private fun GifGalleryApp() {
                         value = query,
                         onValueChange = { query = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("חפש GIF...") },
+                        placeholder = { Text("חפש GIF, מם, חיה, אפקט...", color = Color.White.copy(.4f)) },
                         leadingIcon = { Icon(Icons.Default.Search, null) },
                         singleLine = true,
                         shape = RoundedCornerShape(18.dp),
@@ -166,7 +190,7 @@ private fun GifGalleryApp() {
             }
 
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Adaptive(minSize = 155.dp),
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -191,27 +215,41 @@ private fun GifGalleryApp() {
 private fun GifCard(item: GifItem, favorite: Boolean, onFavorite: () -> Unit, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        color = Color(0xFF121522)
+        shape = RoundedCornerShape(20.dp),
+        color = Color(0xFF11131C),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(.055f))
     ) {
         Column {
-            Box(Modifier.fillMaxWidth().height(175.dp)) {
-                GifPlayer(item.resName, Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)))
+            Box(Modifier.fillMaxWidth().aspectRatio(1.05f)) {
+                GifPlayer(item.resName, Modifier.fillMaxSize().clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)))
+                Box(
+                    Modifier.fillMaxWidth().height(58.dp).align(Alignment.BottomCenter)
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(.7f))))
+                )
                 IconButton(
                     onClick = onFavorite,
                     modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(40.dp)
-                        .clip(RoundedCornerShape(14.dp)).background(Color.Black.copy(alpha = .55f))
+                        .clip(RoundedCornerShape(13.dp)).background(Color.Black.copy(.55f))
                 ) {
-                    Icon(
-                        if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        null,
-                        tint = if (favorite) Color(0xFFFF6D8B) else Color.White
+                    Icon(if (favorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null,
+                        tint = if (favorite) Color(0xFFFF6D8B) else Color.White, modifier = Modifier.size(19.dp))
+                }
+                Surface(
+                    shape = RoundedCornerShape(9.dp), color = Color.Black.copy(.5f),
+                    modifier = Modifier.align(Alignment.BottomStart).padding(8.dp)
+                ) {
+                    Text(
+                        item.category.title,
+                        color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                     )
                 }
             }
-            Column(Modifier.padding(13.dp)) {
-                Text(item.name, color = Color.White, style = MaterialTheme.typography.titleMedium)
-                Text(item.subtitle, color = Color.White.copy(alpha = .55f), maxLines = 2)
+            Column(Modifier.padding(11.dp)) {
+                Text(item.name, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(3.dp))
+                Text(item.subtitle, color = Color.White.copy(.48f), fontSize = 11.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
     }
