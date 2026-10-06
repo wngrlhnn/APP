@@ -27,20 +27,27 @@ queries=[
 ("love","animated love gif"),("love","heart animation gif"),("greetings","hello animation gif"),("greetings","thank you animation gif")]
 blocked=re.compile(r"flag|country.?flag|national.?flag|logo.?flag|ensign",re.I)
 
+def request_json(params, retries=5):
+    for attempt in range(retries):
+        try:
+            r=requests.get(API,params=params,headers=HEADERS,timeout=30)
+            if r.status_code in (429,500,502,503,504):
+                time.sleep(min(10,2**attempt)); continue
+            r.raise_for_status()
+            return r.json()
+        except requests.RequestException:
+            if attempt==retries-1: return None
+            time.sleep(min(10,2**attempt))
+    return None
+
 def search(cat,term):
     params={"action":"query","generator":"search","gsrsearch":term,"gsrnamespace":6,"gsrlimit":50,
             "prop":"imageinfo","iiprop":"url|mime|size|extmetadata","iiurlwidth":WIDTH,"format":"json","formatversion":2}
     found=[]; offsets=set()
     for _ in range(PAGES_PER_QUERY):
-        for attempt in range(5):
-            try:
-                r=requests.get(API,params=params,headers=HEADERS,timeout=30)
-                if r.status_code in (429,500,502,503,504): time.sleep(min(10,2**attempt)); continue
-                r.raise_for_status(); data=r.json(); break
-            except requests.RequestException:
-                if attempt==4: return cat,found
-                time.sleep(min(10,2**attempt))
-        if "data" not in locals():\n            continue\n        for page in data.get("query",{}).get("pages",[]):
+        data=request_json(params)
+        if not data: break
+        for page in data.get("query",{}).get("pages",[]):
             title=page.get("title","")
             if blocked.search(title): continue
             info=(page.get("imageinfo") or [{}])[0]
@@ -52,22 +59,13 @@ def search(cat,term):
         offsets.add(cont["gsroffset"]); params["gsroffset"]=cont["gsroffset"]
     return cat,found
 
-
-
-
 def category_gifs(category="Animated GIF files"):
     params={"action":"query","list":"categorymembers","cmtitle":"Category:"+category,
             "cmnamespace":6,"cmlimit":500,"format":"json","formatversion":2}
     found=[]; seen_titles=set()
     for _ in range(80):
-        for attempt in range(5):
-            try:
-                r=requests.get(API,params=params,headers=HEADERS,timeout=30)
-                if r.status_code in (429,500,502,503,504): time.sleep(min(10,2**attempt)); continue
-                r.raise_for_status(); data=r.json(); break
-            except requests.RequestException:
-                if attempt==4: return found
-                time.sleep(min(10,2**attempt))
+        data=request_json(params)
+        if not data: break
         for page in data.get("query",{}).get("categorymembers",[]):
             title=page.get("title","")
             if title in seen_titles or blocked.search(title): continue
@@ -82,39 +80,32 @@ def category_gifs(category="Animated GIF files"):
         ids=[str(x["pageid"]) for x in found[i:i+50] if x.get("pageid")]
         if not ids: continue
         p={"action":"query","pageids":"|".join(ids),"prop":"imageinfo",
-           "iiprop":"url|mime|size|extmetadata","iiurlwidth":WIDTH,
-           "format":"json","formatversion":2}
-        try:
-            rr=requests.get(API,params=p,headers=HEADERS,timeout=30); rr.raise_for_status()
-            for page in rr.json().get("query",{}).get("pages",[]):
-                info=(page.get("imageinfo") or [{}])[0]
-                if info.get("mime")=="image/gif":
-                    url=info.get("thumburl") or info.get("url")
-                    if url: resolved.append({"url":url,"title":page.get("title",""),"category":"random"})
-        except requests.RequestException: continue
+           "iiprop":"url|mime|size|extmetadata","iiurlwidth":WIDTH,"format":"json","formatversion":2}
+        data=request_json(p)
+        if not data: continue
+        for page in data.get("query",{}).get("pages",[]):
+            info=(page.get("imageinfo") or [{}])[0]
+            if info.get("mime")=="image/gif":
+                url=info.get("thumburl") or info.get("url")
+                if url: resolved.append({"url":url,"title":page.get("title",""),"category":"random"})
     return resolved
 
 items=[]; seen=set(); titles=set()
-with ThreadPoolExecutor(max_workers=8) as pool:
-    fs=[pool.submit(search,c,t) for c,t in queries]
-    gs=[pool.submit(giphy_search,t) for t in GIPHY_TERMS]
-    for f in as_completed(fs):
-        cat,found=f.result()
-        for item in found:
-            if item["url"] in seen or item["title"] in titles: continue
-            seen.add(item["url"]); titles.add(item["title"]); items.append(item)
-    for f in as_completed(gs):
-        for item in f.result():
-            if item["url"] in seen or item["title"] in titles: continue
-            seen.add(item["url"]); titles.add(item["title"]); items.append(item)
-
-
 cat_items=category_gifs()
 random.shuffle(cat_items)
 for item in cat_items:
     if item["url"] in seen or item["title"] in titles: continue
     seen.add(item["url"]); titles.add(item["title"]); items.append(item)
 
+with ThreadPoolExecutor(max_workers=8) as pool:
+    fs=[pool.submit(search,c,t) for c,t in queries]
+    for f in as_completed(fs):
+        cat,found=f.result()
+        for item in found:
+            if item["url"] in seen or item["title"] in titles: continue
+            seen.add(item["url"]); titles.add(item["title"]); items.append(item)
+
+random.shuffle(items)
 print(f"Collected {len(items)} GIF candidates")
 
 def download(job):
@@ -134,8 +125,7 @@ def download(job):
                 fr.thumbnail((WIDTH,WIDTH),Image.Resampling.LANCZOS); frames.append(fr.copy())
                 durations.append(max(50,im.info.get("duration",80)))
             if not frames: raise ValueError("no frames")
-            frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,
-                           loop=im.info.get("loop",0),optimize=True,disposal=2)
+            frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,loop=im.info.get("loop",0),optimize=True,disposal=2)
         if final.stat().st_size>MAX_BYTES:
             final.unlink(missing_ok=True)
             with Image.open(raw) as im:
@@ -145,8 +135,7 @@ def download(job):
                     fr.thumbnail((128,128),Image.Resampling.LANCZOS); frames.append(fr.copy())
                     durations.append(max(50,im.info.get("duration",80)))
                 if frames:
-                    frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,
-                                    loop=im.info.get("loop",0),optimize=True,disposal=2)
+                    frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,loop=im.info.get("loop",0),optimize=True,disposal=2)
             if not final.exists() or final.stat().st_size>MAX_BYTES:
                 final.unlink(missing_ok=True); raw.unlink(missing_ok=True); return None
         raw.unlink(missing_ok=True)
@@ -162,7 +151,9 @@ with ThreadPoolExecutor(max_workers=12) as pool:
         if x: manifest.append(x)
         if i%500==0: print(f"processed {i}/{len(fs)}, usable={len(manifest)}")
         if len(manifest)>=TARGET: break
-if len(manifest)<TARGET: raise SystemExit(f"Only {len(manifest)} usable GIFs; need {TARGET} real assets.")
+
+if len(manifest)<TARGET:
+    raise SystemExit(f"Only {len(manifest)} usable GIFs; need {TARGET} real assets.")
 manifest=manifest[:TARGET]; manifest.sort(key=lambda x:x["file"])
 (ASSETS/"manifest.json").write_text(json.dumps(manifest,ensure_ascii=False,separators=(",",":")),encoding="utf-8")
 print(f"Final offline GIF count: {len(manifest)}")
