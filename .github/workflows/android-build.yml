@@ -35,11 +35,28 @@ jobs:
       - name: Cache GIF gallery assets
         uses: actions/cache@v4
         with:
-          path: app/src/main/assets/gifs
+          path: |
+            app/src/main/res/drawable-nodpi
+            app/src/main/assets/manifest.json
           key: gif-gallery-${{ hashFiles('scripts/download_gifs.py') }}-v1
           restore-keys: |
             gif-gallery-${{ hashFiles('scripts/download_gifs.py') }}-
             gif-gallery-
+
+      - name: Bootstrap GIF gallery from existing latest APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=$(find app/src/main/res/drawable-nodpi -maxdepth 1 -name 'gif*.gif' | wc -l)
+          if [ "$count" -lt 5000 ]; then
+            echo "GIF cache is empty; restoring the existing gallery from the latest release APK."
+            mkdir -p /tmp/gif-bootstrap
+            curl -L --fail --silent --show-error "https://github.com/wngrlhnn/APP/releases/download/latest/app-debug.apk" -o /tmp/gif-bootstrap/app.apk
+            unzip -q /tmp/gif-bootstrap/app.apk 'res/drawable-nodpi/gif*.gif' -d /tmp/gif-bootstrap/extracted
+            mkdir -p app/src/main/res/drawable-nodpi
+            cp /tmp/gif-bootstrap/extracted/res/drawable-nodpi/gif*.gif app/src/main/res/drawable-nodpi/
+            echo '[{"restored_from":"latest-release"}]' > app/src/main/assets/manifest.json
+          fi
 
       - name: Download and aggressively compress 5,000 real animated GIFs
         shell: bash
