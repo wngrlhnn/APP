@@ -15,6 +15,7 @@ TARGET = 5000
 WIDTH = 128
 MAX_BYTES = 300_000
 API = "https://commons.wikimedia.org/w/api.php"
+HEADERS = {"User-Agent": "APP-GIF-Gallery/1.0 (GitHub Actions; https://github.com/wngrlhnn/APP)"}
 
 queries = [
     ("funny", "animated reaction gif"),
@@ -84,8 +85,18 @@ def get_results(term, category, cont=None):
     }
     if cont:
         params.update(cont)
-    r = requests.get(API, params=params, timeout=30)
+    for attempt in range(4):
+        try:
+            r = requests.get(API, params=params, headers=HEADERS, timeout=30)
+            if r.status_code != 429 and r.status_code < 500:
+                r.raise_for_status()
+                return r.json()
+        except requests.RequestException:
+            if attempt == 3:
+                raise
+        time.sleep(2 ** attempt)
     r.raise_for_status()
+    return r.json()
     return r.json()
 
 for category, term in queries:
@@ -121,7 +132,7 @@ for n, item in enumerate(items[:TARGET], 1):
     raw = OUT / f"_tmp_{n:04d}.gif"
     final = OUT / f"gif{n:04d}.gif"
     try:
-        with session.get(item["url"], stream=True, timeout=45) as r:
+        with session.get(item["url"], headers=HEADERS, stream=True, timeout=45) as r:
             r.raise_for_status()
             total = 0
             with raw.open("wb") as f:
