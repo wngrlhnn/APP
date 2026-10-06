@@ -51,10 +51,15 @@ jobs:
           count=$(find app/src/main/res/drawable-nodpi -maxdepth 1 -name 'gif*.gif' | wc -l)
           if [ "$count" -lt 5000 ]; then
             echo "GIF cache is empty; restoring the existing gallery from the latest release APK."
-            mkdir -p /tmp/gif-bootstrap
+            mkdir -p /tmp/gif-bootstrap/extracted
             curl -L --fail --silent --show-error "https://github.com/wngrlhnn/APP/releases/download/latest/app-debug.apk" -o /tmp/gif-bootstrap/app.apk
-            unzip -q /tmp/gif-bootstrap/app.apk 'res/drawable-nodpi/gif*.gif' -d /tmp/gif-bootstrap/extracted
-            cp /tmp/gif-bootstrap/extracted/res/drawable-nodpi/gif*.gif app/src/main/res/drawable-nodpi/
+            unzip -q /tmp/gif-bootstrap/app.apk 'res/drawable*/gif*.gif' -d /tmp/gif-bootstrap/extracted
+            find /tmp/gif-bootstrap/extracted/res -type f -name 'gif*.gif' -exec cp {} app/src/main/res/drawable-nodpi/ \;
+            restored=$(find app/src/main/res/drawable-nodpi -maxdepth 1 -name 'gif*.gif' | wc -l)
+            if [ "$restored" -lt 5000 ]; then
+              echo "Expected 5000 GIFs but restored only $restored."
+              exit 1
+            fi
             echo '[{"restored_from":"latest-release"}]' > app/src/main/assets/manifest.json
           fi
 
