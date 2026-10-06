@@ -39,19 +39,20 @@ jobs:
           mkdir -p app/src/main/res/drawable-nodpi
           rm -f app/src/main/res/drawable-nodpi/*.gif
 
-          # Open-license animated reaction/effect collection.
-          git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Neuro-Spark-AI/sparky.git /tmp/sparky
-          cd /tmp/sparky
-          git sparse-checkout init --cone
-          git sparse-checkout set stickers/gif
-          git checkout --quiet
-          mapfile -t source_gifs < <(find stickers/gif -type f -iname '*.gif' | sort)
-          cd "${GITHUB_WORKSPACE}"
-          n=1
-          for file in "${source_gifs[@]}"; do
-            cp "/tmp/sparky/$file" "app/src/main/res/drawable-nodpi/$(printf 'gif%04d.gif' "$n")"
-            n=$((n+1))
-          done
+          # Download a few verified public-domain/CC0 GIF examples.
+          python3 - <<'PY'
+          from urllib.request import urlretrieve
+          from pathlib import Path
+          out = Path("app/src/main/res/drawable-nodpi")
+          urls = [
+              "https://creativecommons.org/wp-content/uploads/2024/05/cc-logo-color-pop.gif",
+          ]
+          for n, url in enumerate(urls, 1):
+              try:
+                  urlretrieve(url, out / f"gif{n:04d}.gif")
+              except Exception as e:
+                  print("starter download skipped:", e)
+          PY
 
           # Fill the gallery with original, varied animated GIFs — no flags.
           python3 -m pip install --quiet pillow
@@ -111,7 +112,7 @@ jobs:
           cat > GIF_SOURCES.md <<'EOF'
           # GIF sources
           The gallery contains 5,000 animated GIFs. Flag GIFs are intentionally excluded.
-          A small open-license reaction/sticker set is included from the Sparky project; the remaining GIFs are original animations generated for this app (reactions, animals-style motion, effects, waves, confetti and abstract animations).
+          A small public-domain/CC0 starter set is included; the remaining GIFs are original animations generated for this app (reactions, animals-style motion, effects, waves, confetti and abstract animations).
           EOF
 
       - name: Assemble debug APK
