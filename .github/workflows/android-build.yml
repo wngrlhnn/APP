@@ -44,19 +44,24 @@ jobs:
           git sparse-checkout set packs/waving packs/circle-wave
           git checkout --quiet
 
-          mapfile -t codes < <(find packs/waving -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort | head -100)
-          test "${#codes[@]}" -eq 100
+          mapfile -t codes < <(find packs/waving -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort)
+          test "${#codes[@]}" -ge 250
 
           n=1
-          for code in "${codes[@]}"; do
+          for code in "${codes[@]:0:250}"; do
             cp "packs/waving/${code}/${code}-128.gif" "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/$(printf 'gif%03d.gif' "$n")"
-            cp "packs/circle-wave/${code}/${code}-128.gif" "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/$(printf 'gif%03d.gif' "$((n+100))")"
+            n=$((n+1))
+          done
+
+          n=251
+          for code in "${codes[@]:0:250}"; do
+            cp "packs/circle-wave/${code}/${code}-128.gif" "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi/$(printf 'gif%03d.gif' "$n")"
             n=$((n+1))
           done
 
           count=$(find "${GITHUB_WORKSPACE}/app/src/main/res/drawable-nodpi" -name '*.gif' | wc -l)
           echo "Downloaded $count animated GIFs"
-          test "$count" -eq 200
+          test "$count" -eq 500
 
       - name: Assemble debug APK
         run: gradle assembleDebug
