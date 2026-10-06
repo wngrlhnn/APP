@@ -81,7 +81,6 @@ def download(job):
             if not frames: raise ValueError("no frames")
             frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,
                            loop=im.info.get("loop",0),optimize=True,disposal=2)
-        raw.unlink(missing_ok=True)
         if final.stat().st_size>MAX_BYTES:
             final.unlink(missing_ok=True)
             with Image.open(raw) as im:
@@ -94,7 +93,8 @@ def download(job):
                     frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,
                                     loop=im.info.get("loop",0),optimize=True,disposal=2)
             if not final.exists() or final.stat().st_size>MAX_BYTES:
-                final.unlink(missing_ok=True); return None
+                final.unlink(missing_ok=True); raw.unlink(missing_ok=True); return None
+        raw.unlink(missing_ok=True)
         return {**item,"file":final.name,"size":final.stat().st_size}
     except Exception:
         raw.unlink(missing_ok=True); final.unlink(missing_ok=True); return None
