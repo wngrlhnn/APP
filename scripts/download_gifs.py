@@ -47,9 +47,10 @@ def add_info(found,page,cat):
     info=infos[0]
     mime=(info.get("mime") or "").lower()
     url=info.get("url") or info.get("thumburl")
+    thumb=info.get("thumburl")
     # Wikimedia sometimes labels animated GIF derivatives as image/gif only in url metadata.
     if url and (mime=="image/gif" or url.lower().split("?")[0].endswith(".gif")):
-        found.append({"url":url,"title":title,"category":cat})
+        found.append({"url":url,"thumburl":thumb,"title":title,"category":cat})
 
 def search(cat,term):
     params={"action":"query","generator":"search","gsrsearch":term,"gsrnamespace":6,"gsrlimit":50,
@@ -91,7 +92,8 @@ def category_gifs(category="Animated GIF files"):
     return resolved
 
 items=[]; seen=set(); titles=set()
-for item in random.sample(category_gifs(), min(30000,len(category_gifs()))):
+cat_pool=category_gifs()
+for item in random.sample(cat_pool, min(30000,len(cat_pool))):
     if item["url"] in seen or item["title"] in titles: continue
     seen.add(item["url"]); titles.add(item["title"]); items.append(item)
 
@@ -109,13 +111,22 @@ print(f"Collected {len(items)} GIF candidates")
 def download(job):
     n,item=job; raw=OUT/f"_tmp_{n:05d}.gif"; final=OUT/f"gif{n:04d}.gif"
     try:
-        with requests.get(item["url"],headers=HEADERS,stream=True,timeout=45) as r:
-            r.raise_for_status(); total=0
-            with raw.open("wb") as f:
-                for chunk in r.iter_content(65536):
-                    total+=len(chunk)
-                    if total>8_000_000: raise ValueError("source too large")
-                    f.write(chunk)
+        downloaded=False
+        for source in [item.get("url"), item.get("thumburl")]:
+            if not source: continue
+            try:
+                with requests.get(source,headers=HEADERS,stream=True,timeout=45) as r:
+                    r.raise_for_status(); total=0
+                    with raw.open("wb") as f:
+                        for chunk in r.iter_content(65536):
+                            total+=len(chunk)
+                            if total>20_000_000: raise ValueError("source too large")
+                            f.write(chunk)
+                with Image.open(raw) as test: test.seek(0)
+                downloaded=True; break
+            except Exception:
+                raw.unlink(missing_ok=True)
+        if not downloaded: raise ValueError("download failed")
         with Image.open(raw) as im:
             nframes=getattr(im,"n_frames",1)
             frames=[]; durations=[]
