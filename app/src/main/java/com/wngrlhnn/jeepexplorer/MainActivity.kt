@@ -2,6 +2,7 @@ package com.wngrlhnn.jeepexplorer
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -77,6 +78,10 @@ private fun GifGalleryApp() {
     var favoritesOnly by remember { mutableStateOf(false) }
     var favorites by remember { mutableStateOf(setOf<Int>()) }
     var selected by remember { mutableStateOf<GifItem?>(null) }
+
+    BackHandler(enabled = selected != null) {
+        selected = null
+    }
 
     selected?.let { item ->
         GifDetails(
