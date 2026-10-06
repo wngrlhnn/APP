@@ -48,7 +48,7 @@ private fun GifGalleryTheme(content: @Composable () -> Unit) {
 }
 
 private enum class GifCategory(val title: String) {
-    ALL("הכול"), FUNNY("מצחיק"), ANIMALS("חיות"), EFFECTS("אפקטים"), REACTIONS("תגובות")
+    ALL("הכול"), FUNNY("😂 מצחיק"), REACTIONS("🤯 תגובות"), ANIMALS("🐾 חיות"), EFFECTS("✨ אפקטים"), GAMING("🎮 גיימינג"), PEOPLE("🕺 אנשים"), NATURE("🌿 טבע"), SPACE("🌌 חלל"), CARTOON("🎬 קריקטורות"), RANDOM("🔥 ויראלי")
 }
 
 private data class GifItem(
@@ -61,11 +61,11 @@ private data class GifItem(
 
 private val gifs = List(5000) { index ->
     val id = index + 1
-    val category = when { id % 4 == 0 -> GifCategory.FUNNY; id % 4 == 1 -> GifCategory.ANIMALS; id % 4 == 2 -> GifCategory.EFFECTS; else -> GifCategory.REACTIONS }
+    val category = when (id % 10) { 0 -> GifCategory.FUNNY; 1 -> GifCategory.REACTIONS; 2 -> GifCategory.ANIMALS; 3 -> GifCategory.EFFECTS; 4 -> GifCategory.GAMING; 5 -> GifCategory.PEOPLE; 6 -> GifCategory.NATURE; 7 -> GifCategory.SPACE; 8 -> GifCategory.CARTOON; else -> GifCategory.RANDOM }
     GifItem(
         id = id,
         name = "GIF ${id.toString().padStart(4, '0')}",
-        subtitle = when (category) { GifCategory.FUNNY -> "GIF מצחיק ומונפש"; GifCategory.ANIMALS -> "חיות ואנימציות"; GifCategory.EFFECTS -> "אפקטים ואנימציות"; GifCategory.REACTIONS -> "תגובות ואנימציות"; else -> "GIF מונפש" },
+        subtitle = when (category) { GifCategory.FUNNY -> "ממים ואנימציות מצחיקות"; GifCategory.REACTIONS -> "תגובות מפתיעות ו-WTF"; GifCategory.ANIMALS -> "חיות מצחיקות ומגניבות"; GifCategory.EFFECTS -> "אפקטים, אשליות ואנימציות"; GifCategory.GAMING -> "גיימינג ואנימציות משחקים"; GifCategory.PEOPLE -> "ריקודים, תנועות ותגובות"; GifCategory.NATURE -> "טבע, מים וצמחים"; GifCategory.SPACE -> "חלל, כוכבים ואנימציות"; GifCategory.CARTOON -> "קריקטורות וסגנונות מצוירים"; GifCategory.RANDOM -> "דברים ויראליים ומפתיעים"; else -> "GIF מונפש" },
         category = category,
         resName = "gif%04d".format(id)
     )
@@ -118,7 +118,7 @@ private fun GifGalleryApp() {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Spacer(Modifier.height(18.dp))
                 Text("GIF GALLERY", color = Color(0xFF7CFFCB), style = MaterialTheme.typography.labelLarge)
-                Text("5,000+ GIFים מונפשים", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                Text("5,000+ GIFים אמיתיים ומעניינים", color = Color.White, style = MaterialTheme.typography.headlineMedium)
                 Text("מצחיקים • חיות • אפקטים • תגובות • מועדפים", color = Color.White.copy(alpha = .55f))
                 Spacer(Modifier.height(14.dp))
 
