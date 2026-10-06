@@ -148,6 +148,19 @@ def download(job):
                     frames.append(fr.copy()); durations.append(max(50,frame.info.get("duration",80)))
                 if not frames: raise ValueError("fallback no frames")
                 frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,loop=im.info.get("loop",0),optimize=True,disposal=2)
+        # Final compact fallback: preserve a real animated GIF even when the source
+        # is unusually complex. This is the requested 96x96 / 64-color profile.
+        if final.stat().st_size>MAX_BYTES:
+            final.unlink(missing_ok=True)
+            with Image.open(raw) as im:
+                frames=[]; durations=[]
+                for i,frame in enumerate(ImageSequence.Iterator(im)):
+                    if i>=10: break
+                    fr=frame.convert("P",palette=Image.Palette.ADAPTIVE,colors=64)
+                    fr.thumbnail((96,96),Image.Resampling.LANCZOS)
+                    frames.append(fr.copy()); durations.append(max(50,frame.info.get("duration",80)))
+                if not frames: raise ValueError("compact fallback no frames")
+                frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,loop=im.info.get("loop",0),optimize=True,disposal=2)
         if not final.exists() or final.stat().st_size>MAX_BYTES:
             final.unlink(missing_ok=True); return None
         raw.unlink(missing_ok=True)
