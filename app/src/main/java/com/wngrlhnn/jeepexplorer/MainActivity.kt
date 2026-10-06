@@ -58,9 +58,9 @@ private data class GifItem(
     val resName: String
 )
 
-private val gifs = List(200) { index ->
+private val gifs = List(500) { index ->
     val id = index + 1
-    val category = if (id <= 100) GifCategory.WAVE else GifCategory.CIRCLE
+    val category = if (id <= 250) GifCategory.WAVE else GifCategory.CIRCLE
     GifItem(
         id = id,
         name = "GIF ${id.toString().padStart(3, '0')}",
@@ -113,7 +113,7 @@ private fun GifGalleryApp() {
             Column(Modifier.padding(horizontal = 18.dp)) {
                 Spacer(Modifier.height(18.dp))
                 Text("GIF GALLERY", color = Color(0xFF7CFFCB), style = MaterialTheme.typography.labelLarge)
-                Text("200 GIFים מונפשים", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                Text("500 GIFים מונפשים", color = Color.White, style = MaterialTheme.typography.headlineMedium)
                 Text("הרבה GIFים אמיתיים • חיפוש • קטגוריות • מועדפים", color = Color.White.copy(alpha = .55f))
                 Spacer(Modifier.height(14.dp))
 
