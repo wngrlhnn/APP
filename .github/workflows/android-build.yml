@@ -32,6 +32,15 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      - name: Cache GIF gallery assets
+        uses: actions/cache@v4
+        with:
+          path: app/src/main/assets/gifs
+          key: gif-gallery-${{ hashFiles('scripts/download_gifs.py') }}-v1
+          restore-keys: |
+            gif-gallery-${{ hashFiles('scripts/download_gifs.py') }}-
+            gif-gallery-
+
       - name: Download and aggressively compress 5,000 real animated GIFs
         shell: bash
         run: |
