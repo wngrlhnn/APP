@@ -10,7 +10,7 @@ OUT.mkdir(parents=True,exist_ok=True); ASSETS.mkdir(parents=True,exist_ok=True)
 for p in OUT.glob("gif*.gif"): p.unlink()
 for p in OUT.glob("_tmp_*.gif"): p.unlink()
 
-TARGET=5000; WIDTH=96; MAX_BYTES=220_000; PAGES_PER_QUERY=12
+TARGET=5000; WIDTH=160; MAX_BYTES=320_000; PAGES_PER_QUERY=12
 API="https://commons.wikimedia.org/w/api.php"
 HEADERS={"User-Agent":"APP-GIF-Gallery/1.0 (GitHub Actions; https://github.com/wngrlhnn/APP)"}
 queries=[
@@ -74,15 +74,27 @@ def download(job):
                     f.write(chunk)
         with Image.open(raw) as im:
             frames=[]; durations=[]
-            for i in range(min(getattr(im,"n_frames",1),10)):
-                im.seek(i); fr=im.convert("P",palette=Image.Palette.ADAPTIVE,colors=64)
+            for i in range(min(getattr(im,"n_frames",1),16)):
+                im.seek(i); fr=im.convert("P",palette=Image.Palette.ADAPTIVE,colors=128)
                 fr.thumbnail((WIDTH,WIDTH),Image.Resampling.LANCZOS); frames.append(fr.copy())
                 durations.append(max(50,im.info.get("duration",80)))
             if not frames: raise ValueError("no frames")
             frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,
                            loop=im.info.get("loop",0),optimize=True,disposal=2)
         raw.unlink(missing_ok=True)
-        if final.stat().st_size>MAX_BYTES: final.unlink(missing_ok=True); return None
+        if final.stat().st_size>MAX_BYTES:
+            final.unlink(missing_ok=True)
+            with Image.open(raw) as im:
+                frames=[]; durations=[]
+                for i in range(min(getattr(im,"n_frames",1),12)):
+                    im.seek(i); fr=im.convert("P",palette=Image.Palette.ADAPTIVE,colors=96)
+                    fr.thumbnail((128,128),Image.Resampling.LANCZOS); frames.append(fr.copy())
+                    durations.append(max(50,im.info.get("duration",80)))
+                if frames:
+                    frames[0].save(final,save_all=True,append_images=frames[1:],duration=durations,
+                                    loop=im.info.get("loop",0),optimize=True,disposal=2)
+            if not final.exists() or final.stat().st_size>MAX_BYTES:
+                final.unlink(missing_ok=True); return None
         return {**item,"file":final.name,"size":final.stat().st_size}
     except Exception:
         raw.unlink(missing_ok=True); final.unlink(missing_ok=True); return None
